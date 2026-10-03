@@ -1,0 +1,15 @@
+{
+  "name": "FitPitt",
+  "short_name": "FitPitt",
+  "description": "Training plans and a workout log.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#121922",
+  "theme_color": "#121922",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}
