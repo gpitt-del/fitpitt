@@ -1,6 +1,6 @@
 // FitPitt offline support. Own files load from the network first so updates arrive, and from the cache when offline.
-const CACHE = 'fitpitt-v2';
-const SHELL = ['./', 'index.html', 'app.css', 'a.js', 'b.js', 'c.js', 'd.js', 'e.js', 'f.js', 'manifest.webmanifest', 'icon.svg'];
+const CACHE = 'fitpitt-v3';
+const SHELL = ['./', 'index.html', 'app.css', 'a.js', 'b.js', 'c.js', 'd.js', 'e.js', 'f.js', 'g.js', 'manifest.webmanifest', 'icon.svg'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
 self.addEventListener('fetch', e => {
