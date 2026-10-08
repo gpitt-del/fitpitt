@@ -542,7 +542,7 @@
       const img = new Image(); img.src = url;
       try { await img.decode(); } catch (e) { if (live()) say(WHY.open, true); return; }
       if (!live()) return;
-      say('Getting the reader ready…'); const slow = setTimeout(() => { if (live()) say('Getting the reader ready. The first time, it downloads about 7 MB.'); }, 3500);
+      say('Getting the reader ready…'); const slow = setTimeout(() => { if (live()) say('Getting the reader ready. The first time, it downloads about 5 MB.'); }, 3500);
       try { await engine(); } catch (e) { if (live()) say(WHY.reader, true); return; } finally { clearTimeout(slow); }
       await before; if (!live()) return; // a reading that was dropped for this one gets to stop first
       const r = await readSheet(img, img.naturalWidth, img.naturalHeight, stage => { if (!live()) throw new Error('stale'); say(stage === 'find' ? 'Finding the sheet…' : 'Reading the numbers…'); });
