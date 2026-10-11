@@ -3,25 +3,30 @@
 FitPitt is a phone workout log (a home-screen web app) at https://gpitt-del.github.io/fitpitt/, served by GitHub Pages from this repo's `gh-pages` branch. There is no build step. This repo is public, so nothing secret goes in it: no API keys, no personal data.
 
 ## How the app is put together
-- `index.html` loads plain scripts in this order: a b c d **n** e f g h i j k l m **o**. a–e are the base app. The rest are add-ons that run only on this site (`STANDALONE`) and wrap or add to what the base defines (`ACT` handlers, `viewChooser`, `scanSheet`, `aim`, and so on). New features go in a new add-on file, not in edits to existing files.
+- `index.html` loads plain scripts in this order: a b c d **n** e f g h i j k l m **o p**. a–e are the base app. The rest are add-ons that run only on this site (`STANDALONE`) and wrap or add to what the base defines (`ACT` handlers, `viewChooser`, `scanSheet`, `aim`, and so on). New features go in a new add-on file, not in edits to existing files.
 - **`n.js` must load before `e.js`**, because `e.js` loads the log at its end and drops a plan key it does not know. Every other add-on loads after `e.js`, so the first screen has already been drawn once when they arrive.
-- Each person's log lives on their own phone (localStorage key `traininglog.v1`). There is no server yet.
+- Each person's log lives on their own phone (localStorage key `traininglog.v1`); a signed-in phone also syncs it to the person's account (p.js, server/).
 - `sw.js` gives offline use. Bump `CACHE` on every release (`fitpitt-v13` now) and keep `SHELL` listing every app file. `tools/` is not part of the app and is not cached.
 - Photo reader for InBody sheets: `m.js` plus the `ocr7/` folder (Tesseract.js 7.0.0, unmodified). Never change `ocr7/` in place; a newer reader goes in a new folder.
 - Personal plans: `n.js` is the model (checking, codes, turning a plan into the program key `"mine"`); `o.js` has the screens (intake, paste a code, preview, Settings card, backups that carry the plan). The plan format is checked the same way by `tools/plancode.py`; if the format changes, change both.
 
 ## Testing and releasing
-- `python3 tools/test_personal_plans.py [screenshot folder]` runs 88 end-to-end checks in simulated phones (Playwright, headless Chromium).
+- `python3 tools/test_personal_plans.py [screenshot folder]` runs 92 end-to-end checks in simulated phones (Playwright, headless Chromium). It runs with the API address index.html ships, so a signed-out phone saves intake answers instead of texting them; `tools/test_accounts.py` covers the signed-in paths against a local Worker and a stand-in Claude.
 - `python3 tools/test_update.py <previous release ref>` installs that release in a simulated phone, switches to this tree, and checks one reload brings the update, keeps the log, and works offline.
 - A push to `gh-pages` is a release; Pages rebuilds in about 30 seconds. After pushing, compare the pushed files with the tested ones and check the Pages run finished.
 - Push work in progress to a branch early. A whole build of personal plans was once lost because it lived only in a session that ended.
 
 ## Where things stand (Oct 11 2026)
-- Personal plans, accounts, sync and the coach are built and tested here (tools/test_personal_plans.py 88 checks,
-  tools/test_accounts.py 43, server/test/run.mjs 58, tools/test_update.py 10) but **not deployed**: the Worker has not
-  been published and the app's `fitpitt-api` meta tag is empty, so the live site still behaves as before.
-- Nothing is ever texted to Gabe. Without an account, the intake saves the answers and asks for an invite code.
-- To deploy, follow server/README.md. Set the meta tag and bump the cache name in sw.js in the same release.
+- Personal plans, accounts, sync and the coach are built and tested (tools/test_personal_plans.py 92 checks,
+  tools/test_accounts.py 43, server/test/run.mjs 58, tools/test_update.py 10).
+- The Worker is deployed at https://fitpitt-api.fitpitt-api.workers.dev (Gabe's personal Cloudflare account, free plan,
+  D1 database `fitpitt`), and index.html's `fitpitt-api` meta tag points at it. The release to `gh-pages` is the merge
+  of `personal-plans`.
+- Secrets: ADMIN_SETUP_KEY is set by Gabe with `wrangler secret put`. ANTHROPIC_API_KEY waits on the Team plan's API
+  credit (claimable about Oct 17); until it is set, Build my plan answers "The coach is not set up yet" and nothing is
+  charged. The real Claude API has not been called yet: the first plan build is the smoke test (server/README.md).
+- Nothing is ever texted to Gabe. Without an account, the intake saves the answers and asks for an invite code, and
+  Progress on a personal plan asks for a sign-in instead of offering to send the log.
 
 ## How it is built (decided with Gabe, Oct 11 2026)
 - **Server:** Cloudflare Workers + D1 + one Durable Object class (server/). The app stays on GitHub Pages; the API
