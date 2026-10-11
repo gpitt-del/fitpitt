@@ -2,6 +2,7 @@
 //   cd server && npm install && node test/run.mjs
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import net from 'node:net';
 import { fileURLToPath } from 'node:url';
@@ -17,8 +18,8 @@ const mock = await startMock(0);
 const port = await freePort();
 const SETUP = 'setup-secret-for-tests';
 fs.writeFileSync(path.join(root, '.dev.vars'), `ANTHROPIC_API_KEY=test-key\nANTHROPIC_BASE_URL=http://127.0.0.1:${mock.port}\nADMIN_SETUP_KEY=${SETUP}\n`);
-const persist = fs.mkdtempSync('/tmp/fitpitt-d1-');
-const wr = spawn(path.join(root, 'node_modules', '.bin', 'wrangler'), ['dev', '--local', '--port', String(port), '--persist-to', persist, '--var', 'ALLOWED_ORIGINS:http://localhost,http://127.0.0.1,https://gpitt-del.github.io', '--var', 'SITE_URL:http://localhost:9999/'], { cwd: root, stdio: ['ignore', 'pipe', 'pipe'] });
+const persist = fs.mkdtempSync(path.join(os.tmpdir(), 'fitpitt-d1-'));
+const wr = spawn(process.execPath, [path.join(root, 'node_modules', 'wrangler', 'bin', 'wrangler.js'), 'dev', '--local', '--port', String(port), '--persist-to', persist, '--var', 'ALLOWED_ORIGINS:http://localhost,http://127.0.0.1,https://gpitt-del.github.io', '--var', 'SITE_URL:http://localhost:9999/'], { cwd: root, stdio: ['ignore', 'pipe', 'pipe'] });
 let wlog = ''; wr.stdout.on('data', d => { wlog += d; }); wr.stderr.on('data', d => { wlog += d; });
 const API = `http://127.0.0.1:${port}`;
 for (let i = 0; i < 60; i++) { try { const r = await fetch(API + '/health'); if (r.ok) break; } catch (e) { /* not up yet */ } await sleep(500); }
