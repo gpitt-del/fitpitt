@@ -134,15 +134,20 @@ async def main():
         await page.click('[data-act="fpIntake"]')
         ok('answers kept after a reload', await page.input_value('#in-limits') == 'Left shoulder pinches on overhead presses'
            and await page.get_attribute('[data-act="fpChip"][data-q="days"][data-v="4"]', 'aria-pressed') == 'true')
-        await page.click('[data-act="fpSendIntake"]')
-        await page.wait_for_function('window.__shared.length > 0')
-        sent = await page.evaluate('window.__shared[0]')
+        # The site is pointed at the API (index.html's fitpitt-api meta tag), so the intake ends in Save my answers and
+        # nothing is ever texted to Gabe: the answers wait on the phone for the invite code. (tools/test_accounts.py
+        # covers the signed-in path, where the coach builds the plan.)
+        ok('intake button is Save my answers', (await page.inner_text('[data-act="fpSendIntake"]')).strip() == 'Save my answers')
+        text = await page.evaluate('window.FP_UI.intakeText(window.FP_UI.collectIntake())')
         expect = ['FitPitt plan request', 'Name: Mike', 'Goal: Build muscle', 'Days a week: 4, about 60 min each', 'Where: Full gym', 'Experience: Lifting under 2 years',
                   'Injuries or pain: Left shoulder pinches on overhead presses', 'Does now and likes: Bench press, lat pulldown, leg press, curls', 'Age: 41. Sex: male']
-        ok('intake text has every answer', all(x in sent['text'] for x in expect), sent['text'])
-        print('---- intake text ----\n' + sent['text'] + '\n---------------------')
-        await page.wait_for_function("document.querySelector('#sheet .sheet-body h2') && document.querySelector('#sheet .sheet-body h2').textContent === 'Sent'")
-        ok('sent screen explains the next step', 'I have a plan code' in await page.inner_text('#sheet'))
+        ok('intake text has every answer', all(x in text for x in expect), text)
+        print('---- intake text ----\n' + text + '\n---------------------')
+        await page.click('[data-act="fpSendIntake"]')
+        await page.wait_for_function("document.querySelector('#sheet .sheet-body h2') && document.querySelector('#sheet .sheet-body h2').textContent === 'Your answers are saved'")
+        ok('signed out, the answers are saved and the invite sign-in is offered', await page.locator('#sheet [data-act="fpJoin"]').count() == 1)
+        ok('nothing was texted to Gabe', await page.evaluate('window.__shared.length + window.__copied.length') == 0)
+        await shot(page, '03b-answers-saved', full=False)
         await ctx.close()
 
         # ---------- 2. Gabe pastes Claude's JSON on his phone and sends a link ----------
@@ -247,9 +252,14 @@ async def main():
         sess = await page.evaluate("JSON.parse(localStorage.getItem('traininglog.v1')).sessions")
         ok('workout saved under the personal plan', len(sess) == 1 and sess[0]['prog'] == 'mine' and len(sess[0]['ex']) == 7, sess[:1])
         ok('next in rotation is day B', (await page.inner_text('#app .hero h1')) == 'Lower 1')
-        # Progress tab: coach button relabelled for friends
+        # Progress tab, signed out on a personal plan: the coach button asks for a sign-in, it never texts the log to Gabe
         await page.click('#tabs [data-tab="progress"]')
-        ok('Progress: share button speaks to a friend', await page.locator('[data-act="coachShare"]').inner_text() == 'Send my log to Gabe for a review')
+        ok('Progress: signed out, the coach button is a sign-in prompt', await page.locator('[data-act="coachShare"]').count() == 0
+           and (await page.locator('#app [data-act="fpJoin"]').inner_text()).strip() == 'Sign in for a coach review')
+        await page.click('#app [data-act="fpJoin"]')
+        ok('Progress: the prompt opens the invite sign-in', await sheet_title(page) == 'Sign in with an invite')
+        ok('Progress: nothing was texted to Gabe', await page.evaluate('window.__shared.length') == 0)
+        await page.click('#sheet .sheet-body [data-act="closeSheet"]')
         # Backup carries the plan
         await page.click('#tabs [data-tab="settings"]')
         async with page.expect_download() as dl_info:

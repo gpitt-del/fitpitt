@@ -300,7 +300,11 @@
     }
   }
   function buttons() {
-    if (!signedIn()) return;
+    if (!signedIn()) {
+      // Signed out on a personal plan, Progress would offer to text the log to Gabe (o.js). Nothing is texted: ask them to sign in instead.
+      if (tab === 'progress' && S.meta.program === 'mine') { const b = app.querySelector('[data-act="coachShare"]'); if (b) { b.dataset.act = 'fpJoin'; b.textContent = 'Sign in for a coach review'; } }
+      return;
+    }
     if (tab === 'today' && !S.active && S.meta.program && !app.querySelector('[data-act="fpAsk"]')) {
       const eff = app.querySelector('.effort'); if (eff) { const b = document.createElement('button'); b.className = 'btn quiet small'; b.dataset.act = 'fpAsk'; b.textContent = 'Ask the coach'; b.style.marginTop = '12px'; eff.after(b); }
     }
