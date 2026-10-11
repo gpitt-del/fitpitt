@@ -1,0 +1,51 @@
+{
+  "fitpitt": 1,
+  "name": "Mike's upper/lower",
+  "for": "Mike",
+  "made": "2026-10-11",
+  "goal": "Build muscle, mainly shoulders and arms",
+  "line": "Four days a week: upper and lower, twice each. About 60 minutes.",
+  "perWeek": 4,
+  "effort": "Leave 1 or 2 reps in the tank on the early sets. Take the last set of each exercise to failure.",
+  "rules": [
+    "**Look after the left shoulder.** No overhead pressing. Stop any set that pinches and tell Gabe.",
+    "**Rest about 2 minutes** on presses, rows, leg press and deadlifts, and about a minute on the rest."
+  ],
+  "days": [
+    { "name": "Upper 1", "short": "Upper 1", "ex": [
+      { "name": ["Barbell bench press", "Flat DB press", "Machine chest press"], "g": "chest", "sets": 3, "reps": [6, 10], "rest": "long" },
+      { "name": ["Lat pulldown", "Neutral-grip lat pulldown", "Assisted pull-up"], "g": "back", "sets": 3, "reps": [8, 12], "rest": "long" },
+      { "name": ["Incline DB press, 30°", "Incline machine press", "Incline DB press, 30°"], "g": "chest", "sets": 2, "reps": [8, 12], "rest": "long", "cue": "Elbows about 45 degrees from the body." },
+      { "name": ["Seated cable row", "Chest-supported row", "Single-arm DB row"], "g": "back", "sets": 3, "reps": [8, 12], "rest": "long" },
+      { "name": ["Cable lateral raise", "DB lateral raise", "Machine lateral raise"], "g": "sdelt", "sets": 3, "reps": [12, 20], "partials": true },
+      { "name": ["DB curl", "Incline DB curl", "Cable curl"], "g": "bi", "sets": 2, "reps": [10, 15] },
+      { "name": ["Rope pushdown", "Straight-bar pushdown", "Rope pushdown"], "g": "tri", "sets": 2, "reps": [10, 15] }
+    ]},
+    { "name": "Lower 1", "short": "Lower 1", "ex": [
+      { "name": ["Leg press", "Hack squat", "Leg press"], "g": "quad", "sets": 3, "reps": [8, 12], "rest": "long" },
+      { "name": ["Romanian deadlift", "DB Romanian deadlift", "Romanian deadlift"], "g": "ham", "sets": 3, "reps": [8, 12], "rest": "long", "cue": "Stop 1 or 2 reps short on every set." },
+      { "name": "Bulgarian split squat", "g": "quad", "sets": 2, "reps": [8, 12], "per": "leg", "rest": 90 },
+      { "name": ["Seated leg curl", "Lying leg curl", "Seated leg curl"], "g": "ham", "sets": 3, "reps": [10, 15] },
+      { "name": "Standing calf raise", "g": "calf", "sets": 3, "reps": [10, 15], "cue": "Pause 2 seconds at the bottom." },
+      { "name": ["Cable crunch", "Hanging leg raise", "Cable crunch"], "g": "abs", "sets": 2, "reps": [10, 15] }
+    ]},
+    { "name": "Upper 2", "short": "Upper 2", "ex": [
+      { "name": ["Chest-supported row", "Seated cable row", "Chest-supported row"], "g": "back", "sets": 3, "reps": [8, 12], "rest": "long" },
+      { "name": ["Machine chest press", "Barbell bench press", "Flat DB press"], "g": "chest", "sets": 3, "reps": [8, 12], "rest": "long" },
+      { "name": ["Pec deck", "Seated cable fly", "Incline cable fly"], "g": "chest", "sets": 2, "reps": [10, 15], "drop": true },
+      { "name": "Face pull", "g": "rdelt", "sets": 3, "reps": [12, 20] },
+      { "name": ["DB lateral raise", "Cable lateral raise", "DB lateral raise"], "g": "sdelt", "sets": 3, "reps": [12, 20], "partials": true },
+      { "name": "Push-up", "g": "chest", "sets": 2, "reps": [8, 20], "bw": true },
+      { "name": ["Incline DB curl", "Cable curl", "DB curl"], "g": "bi", "sets": 3, "reps": [8, 12] },
+      { "name": ["Overhead cable triceps extension", "Rope pushdown", "Overhead cable triceps extension"], "g": "tri", "sets": 3, "reps": [10, 15], "cue": "Skip it if the shoulder complains. Use rope pushdowns instead." }
+    ]},
+    { "name": "Lower 2", "short": "Lower 2", "ex": [
+      { "name": ["Hack squat", "Leg press", "Hack squat"], "g": "quad", "sets": 3, "reps": [8, 12], "rest": "long" },
+      { "name": "Hip thrust", "g": "glute", "sets": 3, "reps": [8, 12], "rest": "long", "cue": "Pause 1 second at the top." },
+      { "name": ["Leg extension", "Single-leg leg extension", "Leg extension"], "g": "quad", "sets": 3, "reps": [10, 15] },
+      { "name": ["Lying leg curl", "Seated leg curl", "Lying leg curl"], "g": "ham", "sets": 3, "reps": [10, 15] },
+      { "name": "Standing calf raise", "g": "calf", "sets": 3, "reps": [10, 15] },
+      { "name": "Side plank", "g": "abs", "sets": 2, "reps": [30, 45], "hold": true, "per": "side" }
+    ]}
+  ]
+}
