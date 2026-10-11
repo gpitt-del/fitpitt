@@ -1,13 +1,14 @@
 'use strict';
 /* ================= Personal plans: the screens (standalone site only) =================
-   The first screen offers "Get a plan built for you" (a two-minute intake whose answers go to Gabe by text)
-   and "I have a plan code" (paste the code Gabe sends back, or open his link). A plan is previewed before it is used.
+   The first screen offers "Get a plan built for you" (a two-minute intake; with no API set, its answers go to the
+   builder by text) and "I have a plan code" (paste a code or open a plan link). A plan is previewed before it is used.
+   The person who runs FitPitt is "the builder" in every screen, never a name.
    Settings gets a card for the plan, backups carry the plan, and erasing everything removes it.
    Using a plan saves it, switches this phone to it and reloads, so every add-on starts with the plan in place.
    The plan model (checking, codes, turning a plan into a program) is in n.js. */
 (() => {
   if (typeof STANDALONE === 'undefined' || !STANDALONE || !window.FP_PLAN) return;
-  const F = window.FP_PLAN, DRAFT = 'fitpitt.intake', FLASH = 'fitpitt.flash', ADMIN = 'Gabe';
+  const F = window.FP_PLAN, DRAFT = 'fitpitt.intake', FLASH = 'fitpitt.flash', ADMIN = 'the builder';
   let pend = null; // the plan on screen in the preview: { plan, code, notes }
 
   /* ---------- look ---------- */
@@ -54,8 +55,8 @@
     let h = '<header class="hero"><div><h1>FitPitt</h1><p>Pick how you want to start. You can change it later in Settings.</p></div></header>';
     h += '<p class="fp-sub" style="margin-top:4px">Your own plan</p><div class="pick">' +
       (st ? '<button data-act="pickProgram" data-p="mine"><strong>' + esc(st.plan.name) + '</strong><span>' + esc(madeLine(st.plan) + ' ' + st.plan.line) + '</span></button>' : '') +
-      '<button data-act="fpIntake"><strong>Get a plan built for you</strong><span>Two minutes of questions. ' + ADMIN + ' sends back a plan built around the exercises you already do.</span></button>' +
-      '<button data-act="fpPaste"><strong>I have a plan code</strong><span>Paste the code ' + ADMIN + ' sent you.</span></button></div>';
+      '<button data-act="fpIntake"><strong>Get a plan built for you</strong><span>Two minutes of questions, then a plan built around the exercises you already do.</span></button>' +
+      '<button data-act="fpPaste"><strong>I have a plan code</strong><span>Paste a plan code, or open a plan link.</span></button></div>';
     h += '<p class="fp-sub">Ready-made plans</p><div class="pick">' + Object.keys(PROGRAMS).filter(k => k !== 'mine').map(k => '<button data-act="pickProgram" data-p="' + k + '"><strong>' + PROGRAMS[k].name + '</strong><span>' + PROGRAMS[k].line + '</span></button>').join('') + '</div>';
     return h;
   };
@@ -89,7 +90,7 @@
     return '<div class="fp-q" data-q="' + q.k + '">' + lab + field + '</div>';
   }
   function intakeSheet() {
-    openSheet('<h2>Get a plan built for you</h2><p class="fp-lede">' + ADMIN + ' uses your answers to build a plan around the exercises you already do, then sends you a code to load it. Nothing leaves this phone until you send it.</p>' +
+    openSheet('<h2>Get a plan built for you</h2><p class="fp-lede">Your answers become a plan built around the exercises you already do. Nothing leaves this phone until you send it.</p>' +
       Q.map(question).join('') +
       '<div class="frm" style="margin-top:22px"><button class="btn primary" data-act="fpSendIntake">Send to ' + ADMIN + '</button><button class="btn link" data-act="closeSheet">Close</button></div>');
   }
@@ -135,7 +136,7 @@
   /* ---------- paste a code, then preview ---------- */
   function pasteSheet(text, errs) {
     const clip = !!(navigator.clipboard && navigator.clipboard.readText);
-    openSheet('<h2>Load your plan</h2><p class="fp-lede">Paste the code from ' + ADMIN + '\'s message. It starts with FP1. A link from him works too.</p>' +
+    openSheet('<h2>Load your plan</h2><p class="fp-lede">Paste a plan code. It starts with FP1. A plan link works too.</p>' +
       '<textarea class="fp-code" id="fp-text" rows="5" placeholder="FP1." autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Plan code" style="margin-top:12px"></textarea>' +
       '<div class="fp-err" id="fp-err" role="alert" style="margin-top:10px"></div>' +
       '<div class="frm" style="margin-top:14px"><button class="btn primary" data-act="fpCheck">Open the plan</button>' +
@@ -206,8 +207,8 @@
     const st = F.read(), on = st && S.meta.program === 'mine', el = document.createElement('div');
     el.className = 'setting'; el.id = 'fp-set';
     el.innerHTML = on
-      ? '<span class="s-l">Your plan</span><p>' + esc(st.plan.name) + '. ' + esc(madeLine(st.plan)) + '</p><div class="stack" style="margin-top:10px"><button class="btn quiet wide" data-act="fpPaste">Load a new plan code</button>' + (st.code ? '<button class="btn quiet wide" data-act="fpMyCode">Copy this plan\'s code</button>' : '') + '<button class="btn quiet wide" data-act="fpIntake">Ask ' + ADMIN + ' for a new plan</button></div>'
-      : '<span class="s-l">Your own plan</span><p>A plan built around the exercises you already do. Answer a few questions, and ' + ADMIN + ' sends back a code to load it.</p><div class="stack" style="margin-top:10px"><button class="btn quiet wide" data-act="fpIntake">Get a plan built for you</button><button class="btn quiet wide" data-act="fpPaste">I have a plan code</button></div>';
+      ? '<span class="s-l">Your plan</span><p>' + esc(st.plan.name) + '. ' + esc(madeLine(st.plan)) + '</p><div class="stack" style="margin-top:10px"><button class="btn quiet wide" data-act="fpPaste">Load a new plan code</button>' + (st.code ? '<button class="btn quiet wide" data-act="fpMyCode">Copy this plan\'s code</button>' : '') + '<button class="btn quiet wide" data-act="fpIntake">Get a new plan built</button></div>'
+      : '<span class="s-l">Your own plan</span><p>A plan built around the exercises you already do. Answer a few questions to get one built.</p><div class="stack" style="margin-top:10px"><button class="btn quiet wide" data-act="fpIntake">Get a plan built for you</button><button class="btn quiet wide" data-act="fpPaste">I have a plan code</button></div>';
     first.after(el);
   }
   ACT.fpMyCode = () => { const st = F.read(); if (!st || !st.code) return; copyText('Plan code', st.code, 'Copy this code to load the plan on another phone.').then(how => { if (how === 'copied') toast('Code copied. Paste it into FitPitt on the other phone.'); }); };

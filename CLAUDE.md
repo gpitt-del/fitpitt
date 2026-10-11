@@ -6,7 +6,7 @@ FitPitt is a phone workout log (a home-screen web app) at https://gpitt-del.gith
 - `index.html` loads plain scripts in this order: a b c d **n** e f g h i j k l m **o p**. a–e are the base app. The rest are add-ons that run only on this site (`STANDALONE`) and wrap or add to what the base defines (`ACT` handlers, `viewChooser`, `scanSheet`, `aim`, and so on). New features go in a new add-on file, not in edits to existing files.
 - **`n.js` must load before `e.js`**, because `e.js` loads the log at its end and drops a plan key it does not know. Every other add-on loads after `e.js`, so the first screen has already been drawn once when they arrive.
 - Each person's log lives on their own phone (localStorage key `traininglog.v1`); a signed-in phone also syncs it to the person's account (p.js, server/).
-- `sw.js` gives offline use. Bump `CACHE` on every release (`fitpitt-v13` now) and keep `SHELL` listing every app file. `tools/` is not part of the app and is not cached.
+- `sw.js` gives offline use. Bump `CACHE` on every release (`fitpitt-v14` now) and keep `SHELL` listing every app file. `tools/` is not part of the app and is not cached.
 - Photo reader for InBody sheets: `m.js` plus the `ocr7/` folder (Tesseract.js 7.0.0, unmodified). Never change `ocr7/` in place; a newer reader goes in a new folder.
 - Personal plans: `n.js` is the model (checking, codes, turning a plan into the program key `"mine"`); `o.js` has the screens (intake, paste a code, preview, Settings card, backups that carry the plan). The plan format is checked the same way by `tools/plancode.py`; if the format changes, change both.
 

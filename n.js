@@ -155,7 +155,7 @@
       if (b && (!a || b[1] !== a[1])) tries.push(b[1]);
     }
     if (tries.length) {
-      if (!canZip()) return fail('This phone\'s browser is too old to open short codes. Update the phone, or ask Gabe for the long version that starts with {.');
+      if (!canZip()) return fail('This phone\'s browser is too old to open short codes. Update the phone, or ask the builder for the long version that starts with {.');
       for (const k of tries) {
         let raw;
         try { raw = JSON.parse(new TextDecoder().decode(await pipe(unb64u(k), DecompressionStream))); } catch (e) { continue; }

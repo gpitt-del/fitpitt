@@ -147,9 +147,9 @@ async function createJobWith(b, env, me) {
   if (!env.ANTHROPIC_API_KEY) throw new HttpError(503, 'The coach is not set up yet (no API key on the server).');
   const s = await getSettings(env);
   const spent = await monthCost(env, me.id), stop = stopFor(me, s);
-  if (stop != null && spent >= stop) throw new HttpError(402, 'Your coach budget for this month is used up ($' + round(spent) + ' of $' + stop + '). Ask Gabe to raise it.', { code: 'cap' });
+  if (stop != null && spent >= stop) throw new HttpError(402, 'Your coach budget for this month is used up ($' + round(spent) + ' of $' + stop + '). Ask the builder to raise it.', { code: 'cap' });
   const all = await monthCost(env, null);
-  if (s.ceiling_usd && all >= s.ceiling_usd) throw new HttpError(402, "The coach's monthly budget for everyone is used up. Ask Gabe.", { code: 'ceiling' });
+  if (s.ceiling_usd && all >= s.ceiling_usd) throw new HttpError(402, "The coach's monthly budget for everyone is used up. Ask the builder.", { code: 'ceiling' });
   const input = {};
   if (kind === 'plan') { input.intake = str(b.intake, 4000); if (!input.intake) throw new HttpError(400, 'Send the intake answers.'); input.note = str(b.note, 1000); }
   if (kind === 'review') { input.log = String(b.log || '').slice(0, 14000); if (!input.log.trim()) throw new HttpError(400, 'Send the log to review.'); }

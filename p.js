@@ -1,6 +1,6 @@
 'use strict';
 /* ================= Accounts, sync and the coach (standalone site only) =================
-   Talks to the FitPitt API (server/ in this repo, on Cloudflare). Signing in is by an invite code from Gabe, typed in
+   Talks to the FitPitt API (server/ in this repo, on Cloudflare). Signing in is by an invite code, typed in
    or opened as a link (#join=CODE). Each phone keeps its own device token. Once signed in:
    - the log syncs: this phone pushes what changed and pulls what other phones changed (the newer stamp wins),
      taking over the Cloud object the base app already writes through;
@@ -11,7 +11,7 @@
    The API address comes from a meta tag in index.html (fitpitt-api), or localStorage fitpitt.api for tests. */
 (() => {
   if (typeof STANDALONE === 'undefined' || !STANDALONE || !window.FP_PLAN || !window.FP_UI) return;
-  const F = window.FP_PLAN, UI = window.FP_UI, ADMIN = 'Gabe';
+  const F = window.FP_PLAN, UI = window.FP_UI, ADMIN = 'the builder', ADMIN_NAME = 'Gabe'; // ADMIN is how screens refer to whoever runs FitPitt; ADMIN_NAME is the admin account's name
   const KEY = 'fitpitt.account', SYNC_KEY = 'fitpitt.sync', JOB_KEY = 'fitpitt.job', LOG_KEY = 'fitpitt.coachlog';
   const api = (() => { try { const v = localStorage.getItem('fitpitt.api'); if (v) return v.replace(/\/$/, ''); } catch (e) { /* ignore */ } const m = document.querySelector('meta[name="fitpitt-api"]'); return m && m.content ? m.content.replace(/\/$/, '') : ''; })();
   if (!api) return; // no server set up for this copy of the app
@@ -213,7 +213,7 @@
   ACT.fpSendIntake = () => {
     const d = UI.collectIntake(); if (!d) return;
     if (!signedIn()) {
-      openSheet('<h2>Your answers are saved</h2><p>They stay on this phone. Sign in with the invite code from ' + ADMIN + ' and the coach builds your plan from them.</p><div class="frm" style="margin-top:16px"><button class="btn primary" data-act="fpJoin">I have an invite code</button><button class="btn link" data-act="closeSheet">Close</button></div>');
+      openSheet('<h2>Your answers are saved</h2><p>They stay on this phone. Sign in with your invite code and the coach builds your plan from them.</p><div class="frm" style="margin-top:16px"><button class="btn primary" data-act="fpJoin">I have an invite code</button><button class="btn link" data-act="closeSheet">Close</button></div>');
       return;
     }
     const intake = UI.intakeText(d);
@@ -240,7 +240,7 @@
 
   /* ---------- sign in, settings and admin screens ---------- */
   ACT.fpJoin = () => {
-    openSheet('<h2>Sign in with an invite</h2><p class="fp-lede">' + ADMIN + ' sends an 8-character code. Type it here, or open the link he sent.</p>' +
+    openSheet('<h2>Sign in with an invite</h2><p class="fp-lede">Type your 8-character invite code, or open the invite link you were sent.</p>' +
       '<input class="input fp-code-in" id="fp-join" type="text" maxlength="9" placeholder="ABCD-EFGH" autocomplete="off" autocapitalize="characters" spellcheck="false" style="margin-top:12px;text-transform:uppercase">' +
       '<div class="fp-err" id="fp-join-err" role="alert" style="margin-top:10px"></div>' +
       '<div class="frm" style="margin-top:14px"><button class="btn primary" data-act="fpJoinSend">Sign in</button><button class="btn link" data-act="closeSheet">Cancel</button></div>' +
@@ -257,7 +257,7 @@
     const key = ($('#fp-setup') ? $('#fp-setup').value : '').trim(); if (!key) return;
     try {
       if (acct) throw new ApiError(400, { error: 'Sign out first.' });
-      const r = await call('POST', '/setup', { key, name: ADMIN, device: 'admin phone' }, { noAuth: true });
+      const r = await call('POST', '/setup', { key, name: ADMIN_NAME, device: 'admin phone' }, { noAuth: true });
       if (state.person && state.person !== r.person.id && hasLog()) { await call('POST', '/signout', undefined, { }).catch(() => {}); throw new ApiError(400, { error: 'This phone holds another person\'s log. Erase everything in Settings first.' }); }
       startAccount(r);
       await Cloud.init(); closeSheet(); render(); toast('Signed in as ' + r.person.name + ', admin.');
@@ -268,7 +268,7 @@
     if (code.replace(/[^A-Za-z0-9]/g, '').length !== 8) { const el = $('#fp-join-err'); if (el) el.textContent = 'The code is 8 letters and numbers.'; return; }
     join(code).catch(e => { const el = $('#fp-join-err'); if (el) el.textContent = e.message; });
   };
-  ACT.fpSignOut = () => { confirmSheet('Sign out on this phone?', 'Your log stays on this phone and in your account. Sign in again with a new invite code from ' + ADMIN + '.', 'fpSignOutNow', 'Sign out'); };
+  ACT.fpSignOut = () => { confirmSheet('Sign out on this phone?', 'Your log stays on this phone and in your account. Sign in again with an invite code.', 'fpSignOutNow', 'Sign out'); };
   ACT.fpSignOutNow = () => { signOut(true); closeSheet(); toast('Signed out.'); };
 
   function accountCard() {
@@ -278,7 +278,7 @@
     el.innerHTML = signedIn()
       ? '<span class="s-l">Your account</span><p>Signed in as <b>' + esc(acct.person.name) + '</b>' + (isAdmin() ? ' (admin)' : '') + '. Your log saves to your account, so another phone you sign in on shows the same log. <span id="fp-sync">' + esc(STATUS[Cloud.status]) + '</span></p>' +
         '<div class="stack" style="margin-top:10px">' + (isAdmin() ? '<button class="btn quiet wide" data-act="adOpen">FitPitt admin: people, invites, costs</button>' : '') + '<button class="btn quiet wide" data-act="fpLastPlan">Open the last plan the coach built</button><button class="btn quiet wide" data-act="fpSignOut">Sign out on this phone</button></div>'
-      : '<span class="s-l">Your account</span><p>With an invite from ' + ADMIN + ', the coach builds your plan, reviews your weeks and answers questions, and your log is saved to your account.</p><div class="stack" style="margin-top:10px"><button class="btn quiet wide" data-act="fpJoin">I have an invite code</button></div>';
+      : '<span class="s-l">Your account</span><p>With an invite code, the coach builds your plan, reviews your weeks and answers questions, and your log is saved to your account.</p><div class="stack" style="margin-top:10px"><button class="btn quiet wide" data-act="fpJoin">I have an invite code</button></div>';
     anchor.after(el);
     // The base app's "Your data" text assumed a different kind of account.
     if (signedIn()) app.querySelectorAll('.setting p').forEach(p => { if (/Claude login|saved on this device only/.test(p.textContent)) p.textContent = 'Saved to your FitPitt account and on this phone. A backup file is still a good idea now and then.'; });
@@ -287,7 +287,7 @@
   const chooser0 = viewChooser;
   viewChooser = function () {
     let h = chooser0();
-    h = h.replace('Two minutes of questions. ' + ADMIN + ' sends back a plan built around the exercises you already do.', 'Two minutes of questions, then the coach builds a plan around the exercises you already do.');
+    h = h.replace('Two minutes of questions, then a plan built around the exercises you already do.', 'Two minutes of questions, then the coach builds a plan around the exercises you already do.');
     if (!signedIn()) h = h.replace('<p class="fp-sub">Ready-made plans</p>', '<div class="pick" style="margin-top:10px"><button data-act="fpJoin"><strong>I have an invite code</strong><span>Sign in to use the coach and save your log to your account.</span></button></div><p class="fp-sub">Ready-made plans</p>');
     return h;
   };
@@ -295,7 +295,7 @@
     const body = $('#sheet:not([hidden]) .sheet-body'); if (!body) return;
     const h2 = body.querySelector('h2'); if (!h2) return;
     if (h2.textContent === 'Get a plan built for you') {
-      const lede = body.querySelector('.fp-lede'); if (lede && !lede.dataset.fp) { lede.dataset.fp = '1'; lede.textContent = signedIn() ? 'The coach builds a plan around the exercises you already do. Answer these, then tap Build my plan.' : 'The coach builds a plan around the exercises you already do. Answer these, then sign in with the invite code from ' + ADMIN + '.'; }
+      const lede = body.querySelector('.fp-lede'); if (lede && !lede.dataset.fp) { lede.dataset.fp = '1'; lede.textContent = signedIn() ? 'The coach builds a plan around the exercises you already do. Answer these, then tap Build my plan.' : 'The coach builds a plan around the exercises you already do. Answer these, then sign in with your invite code.'; }
       const b = body.querySelector('[data-act="fpSendIntake"]'); const want = signedIn() ? 'Build my plan' : 'Save my answers'; if (b && b.textContent !== want) b.textContent = want;
     }
   }
