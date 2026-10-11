@@ -11,7 +11,7 @@
     // Where invite links point.
     "SITE_URL": "https://gpitt-del.github.io/fitpitt/"
   },
-  "d1_databases": [{ "binding": "DB", "database_name": "fitpitt", "database_id": "REPLACE_AFTER_wrangler_d1_create" }],
+  "d1_databases": [{ "binding": "DB", "database_name": "fitpitt", "database_id": "1a31c756-9574-412c-9bf7-413c9c7f68a8" }],
   "durable_objects": { "bindings": [{ "name": "JOBS", "class_name": "CoachJob" }] },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["CoachJob"] }]
 }
