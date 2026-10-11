@@ -17,13 +17,25 @@ FitPitt is a phone workout log (a home-screen web app) at https://gpitt-del.gith
 - Push work in progress to a branch early. A whole build of personal plans was once lost because it lived only in a session that ended.
 
 ## Where things stand (Oct 11 2026)
-- Personal plans are built and tested but **not released**. The intake still ends in "Send to Gabe", and Gabe does not want friends' answers texted to him. Plans are to be built inside the app by the coach, so the friend-facing parts wait for the coach.
+- Personal plans, accounts, sync and the coach are built and tested here (tools/test_personal_plans.py 88 checks,
+  tools/test_accounts.py 43, server/test/run.mjs 58, tools/test_update.py 10) but **not deployed**: the Worker has not
+  been published and the app's `fitpitt-api` meta tag is empty, so the live site still behaves as before.
+- Nothing is ever texted to Gabe. Without an account, the intake saves the answers and asks for an invite code.
+- To deploy, follow server/README.md. Set the meta tag and bump the cache name in sw.js in the same release.
 
-## What comes next (decided with Gabe, Oct 11 2026)
-- **Server:** Cloudflare Workers with a D1 database (Gabe is creating the account). The app stays on GitHub Pages so nobody's local log moves; the API runs on workers.dev with CORS for `https://gpitt-del.github.io` and bearer tokens, no cookies. Plan builds can take minutes on the strongest model, so long jobs must survive the phone locking (store results server-side; the phone fetches them).
-- **Accounts:** invite-only. Gabe adds a person in an admin screen and sends them a personal sign-in link; each device gets its own token. Email sign-in can come later, with a domain.
-- **Sync:** logs (meta, sessions, scans, the active workout) per person in D1, with the phone as cache. The base app's `Cloud` object in `b.js` was written for another storage API and shows the merge rules (newest `u` wins, deletions as tombstones).
-- **Coach:** the Claude API with Fable 5.1 for plan builds, weekly reviews and questions; the model is a setting per task. Plans come back in the `tools/plancode.py` format and pass the same checks before a phone sees them. The coach stays on training: no medical, drug, supplement or peptide advice, and it tells people to get pain checked.
-- **Metering:** record each call's tokens and cost per person. Gabe's admin screen shows each person's month so far, flags anyone other than Gabe above $5 in a month, and the server stops a person at $20 a month (Gabe can change both).
-- **Secrets:** Gabe sets the Anthropic API key as a Worker secret himself. Never put it in code, the repo or a chat.
-- **Kids** join later, under a parent, with a coach limited to their volleyball plan.
+## How it is built (decided with Gabe, Oct 11 2026)
+- **Server:** Cloudflare Workers + D1 + one Durable Object class (server/). The app stays on GitHub Pages; the API
+  lives on workers.dev with CORS for `https://gpitt-del.github.io` and bearer device tokens, no cookies.
+- **Accounts:** invite-only. The admin signs in with the ADMIN_SETUP_KEY secret; he adds people and makes invite
+  codes (14 days, 3 phones). A phone holding one person's log refuses another person's code until the log is erased.
+- **Sync:** per-person docs (meta, active, session, scan, plan, intake); the newer `u` wins; phones pull by the
+  server's arrival order `seq`, so a workout pushed late still arrives. The Cloud object in b.js is taken over by p.js.
+- **Coach:** Fable 5.1 for plans, reviews and questions (a setting per task). Plans come back through a strict
+  `submit_plan` tool and pass the same checks as the app (server/src/plan.js = n.js). Jobs run in a Durable Object
+  alarm so a phone can lock mid-build; every model reply is kept so a retry never pays twice. Training only: no
+  medical, drug, supplement or peptide advice; pain means stop and get checked.
+- **Money:** each call's tokens and cost are recorded, failures included. Admin screen flags anyone but Gabe over $5
+  a month; the server stops a person at $20 (or their own cap) and everyone at a $150 ceiling. Unknown models are
+  charged at the dearest known price; a task model without a price is refused.
+- **Secrets:** ANTHROPIC_API_KEY and ADMIN_SETUP_KEY are Worker secrets Gabe sets. Never in code, the repo or a chat.
+- **Kids:** a `kid` role with `parent_id` exists in the data; the volleyball-only coach for kids is not built yet.

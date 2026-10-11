@@ -209,11 +209,13 @@
     } catch (e) { busy(e); }
   };
 
-  // Build my plan: the intake sheet's button, when signed in.
-  const send0 = ACT.fpSendIntake;
+  // Build my plan: the intake sheet's button. Nothing is ever texted to Gabe; without an account the answers wait on the phone.
   ACT.fpSendIntake = () => {
-    if (!signedIn()) { send0(); return; }
     const d = UI.collectIntake(); if (!d) return;
+    if (!signedIn()) {
+      openSheet('<h2>Your answers are saved</h2><p>They stay on this phone. Sign in with the invite code from ' + ADMIN + ' and the coach builds your plan from them.</p><div class="frm" style="margin-top:16px"><button class="btn primary" data-act="fpJoin">I have an invite code</button><button class="btn link" data-act="closeSheet">Close</button></div>');
+      return;
+    }
     const intake = UI.intakeText(d);
     Cloud.put('intake/current', { text: intake, u: Date.now() });
     startJob('plan', { intake, currentPlan: currentPlan(), log: liveSessions().length ? logText() : '' }).catch(busy);
@@ -285,16 +287,16 @@
   const chooser0 = viewChooser;
   viewChooser = function () {
     let h = chooser0();
-    if (signedIn()) h = h.replace('Two minutes of questions. ' + ADMIN + ' sends back a plan built around the exercises you already do.', 'Two minutes of questions, then the coach builds a plan around the exercises you already do.');
-    else h = h.replace('<p class="fp-sub">Ready-made plans</p>', '<div class="pick" style="margin-top:10px"><button data-act="fpJoin"><strong>I have an invite code</strong><span>Sign in to use the coach and save your log to your account.</span></button></div><p class="fp-sub">Ready-made plans</p>');
+    h = h.replace('Two minutes of questions. ' + ADMIN + ' sends back a plan built around the exercises you already do.', 'Two minutes of questions, then the coach builds a plan around the exercises you already do.');
+    if (!signedIn()) h = h.replace('<p class="fp-sub">Ready-made plans</p>', '<div class="pick" style="margin-top:10px"><button data-act="fpJoin"><strong>I have an invite code</strong><span>Sign in to use the coach and save your log to your account.</span></button></div><p class="fp-sub">Ready-made plans</p>');
     return h;
   };
   function fixSheet() {
     const body = $('#sheet:not([hidden]) .sheet-body'); if (!body) return;
     const h2 = body.querySelector('h2'); if (!h2) return;
-    if (h2.textContent === 'Get a plan built for you' && signedIn()) {
-      const lede = body.querySelector('.fp-lede'); if (lede && !lede.dataset.fp) { lede.dataset.fp = '1'; lede.textContent = 'The coach builds a plan around the exercises you already do. Answer these, then tap Build my plan.'; }
-      const b = body.querySelector('[data-act="fpSendIntake"]'); if (b && b.textContent !== 'Build my plan') b.textContent = 'Build my plan';
+    if (h2.textContent === 'Get a plan built for you') {
+      const lede = body.querySelector('.fp-lede'); if (lede && !lede.dataset.fp) { lede.dataset.fp = '1'; lede.textContent = signedIn() ? 'The coach builds a plan around the exercises you already do. Answer these, then tap Build my plan.' : 'The coach builds a plan around the exercises you already do. Answer these, then sign in with the invite code from ' + ADMIN + '.'; }
+      const b = body.querySelector('[data-act="fpSendIntake"]'); const want = signedIn() ? 'Build my plan' : 'Save my answers'; if (b && b.textContent !== want) b.textContent = want;
     }
   }
   function buttons() {

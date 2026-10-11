@@ -130,7 +130,15 @@ async def main():
         ctx_m, mike = await newpage(browser, tag='mike')
         await mike.goto(SITE); await mike.wait_for_selector('#app h1')
         ok('first screen offers the invite sign-in', await mike.locator('[data-act="fpJoin"]').count() == 1)
-        await mike.click('[data-act="fpJoin"]'); await wait_sheet(mike, 'Sign in with an invite')
+        await mike.click('[data-act="fpIntake"]'); await wait_sheet(mike, 'Get a plan built for you')
+        ok('signed out, the intake ends in Save my answers, not a text to Gabe', await mike.locator('[data-act="fpSendIntake"]').inner_text() == 'Save my answers' and 'sign in' in await mike.inner_text('#sheet .fp-lede'))
+        await mike.fill('#in-name', 'Mike')
+        for q, v in [('goal', 'Build muscle'), ('days', '4'), ('mins', '60 min'), ('where', 'Full gym'), ('exp', 'Lifting under 2 years')]:
+            await mike.click('[data-act="fpChip"][data-q="%s"][data-v="%s"]' % (q, v))
+        await mike.fill('#in-limits', 'Left shoulder pinches overhead'); await mike.fill('#in-likes', 'Bench, pulldown, leg press')
+        await mike.click('[data-act="fpSendIntake"]'); await wait_sheet(mike, 'Your answers are saved')
+        ok('saved answers lead to the invite sign-in, and nothing was shared', await mike.evaluate('window.__shared.length') == 0)
+        await mike.click('#sheet [data-act="fpJoin"]'); await wait_sheet(mike, 'Sign in with an invite')
         await mike.fill('#fp-join', 'ZZZZ-ZZZZ'); await mike.click('[data-act="fpJoinSend"]')
         await mike.wait_for_function("document.querySelector('#fp-join-err').textContent.length > 0")
         ok('a wrong code gets a reason', 'not one of ours' in await mike.inner_text('#fp-join-err'))
@@ -143,11 +151,7 @@ async def main():
 
         # ---------- 3. Build my plan through the coach ----------
         await mike.click('[data-act="fpIntake"]'); await wait_sheet(mike, 'Get a plan built for you')
-        ok('the intake ends in Build my plan', await mike.locator('[data-act="fpSendIntake"]').inner_text() == 'Build my plan' and 'coach builds' in await mike.inner_text('#sheet .fp-lede'))
-        await mike.fill('#in-name', 'Mike')
-        for q, v in [('goal', 'Build muscle'), ('days', '4'), ('mins', '60 min'), ('where', 'Full gym'), ('exp', 'Lifting under 2 years')]:
-            await mike.click('[data-act="fpChip"][data-q="%s"][data-v="%s"]' % (q, v))
-        await mike.fill('#in-limits', 'Left shoulder pinches overhead'); await mike.fill('#in-likes', 'Bench, pulldown, leg press')
+        ok('signed in, the intake ends in Build my plan with the saved answers', await mike.locator('[data-act="fpSendIntake"]').inner_text() == 'Build my plan' and await mike.input_value('#in-likes') == 'Bench, pulldown, leg press')
         await mike.click('[data-act="fpSendIntake"]'); await wait_sheet(mike, 'Building your plan')
         ok('the job sheet says the phone can be locked', 'lock your phone' in await mike.inner_text('#sheet'))
         await shot(mike, 'a4-building')

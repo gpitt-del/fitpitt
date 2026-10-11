@@ -50,6 +50,12 @@ node test/run.mjs                                   # or: the full suite, which 
 7. Later deploys: push to the repo and let Cloudflare's GitHub integration (Workers Builds, root directory `server`) deploy,
    or run `npx wrangler deploy` by hand. The database schema updates itself on the next request.
 
+## First smoke test after deploying
+Sign in as admin on a phone, Settings → Get a plan built for you → Build my plan, and watch Settings → FitPitt admin →
+Recent coach calls. The stand-in used in tests accepts any tool schema; the real API has not been called yet. If the
+first plan fails with an API error about the tool or schema, loosen `TOOLS` in `src/coach.js` (drop `strict: true`
+first). `npx wrangler tail` shows the Worker's logs live.
+
 ## Not done yet
 - Kids' mode: a kid account exists in the data model (role `kid`, `parent_id`), but the app does not yet limit a kid's coach to volleyball.
 - Push notifications when a plan is ready (the app checks when it is opened or comes to the front).
