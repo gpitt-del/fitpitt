@@ -62,58 +62,127 @@
   };
 
   /* ---------- intake ---------- */
-  const Q = [
-    { k: 'name', t: 'text', label: 'Your first name', req: 1, max: 30 },
-    { k: 'goal', t: 'chips', label: 'Main goal', req: 1, opts: ['Build muscle', 'Lose fat, keep muscle', 'Get stronger', 'Fitter and healthier', 'Train for a sport'] },
-    { k: 'goalText', t: 'text', label: 'In your own words', max: 140, ph: 'Bigger shoulders, a stronger back, ready for ski season' },
-    { k: 'days', t: 'chips', label: 'Days a week you can train', req: 1, opts: ['2', '3', '4', '5', '6'] },
-    { k: 'mins', t: 'chips', label: 'Time for each session', req: 1, opts: ['30 min', '45 min', '60 min', '75 min', '90 min'] },
-    { k: 'where', t: 'chips', label: 'Where you train', req: 1, opts: ['Full gym', 'Home, with dumbbells', 'Home, little or no equipment'] },
-    { k: 'equip', t: 'text', label: 'Equipment worth knowing about', max: 140, ph: 'Dumbbells to 50 lb, a bench, a pull-up bar' },
-    { k: 'exp', t: 'chips', label: 'Lifting experience', req: 1, opts: ['New, or back after a long break', 'Lifting under 2 years', 'Lifting 2 years or more'] },
-    { k: 'limits', t: 'area', label: 'Injuries or pain to work around', req: 1, max: 400, ph: 'Left shoulder pinches on overhead presses. Write none if there are none.' },
-    { k: 'likes', t: 'area', label: 'Exercises you do now and like', req: 1, max: 400, ph: 'Bench press, lat pulldown, leg press, curls. Write none if you are new.' },
-    { k: 'avoid', t: 'text', label: 'Exercises to avoid', max: 140, ph: 'Barbell back squats' },
-    { k: 'age', t: 'num', label: 'Age', max: 3 },
-    { k: 'sex', t: 'chips', label: 'Sex', opts: ['Male', 'Female'] },
-    { k: 'other', t: 'area', label: 'Anything else', max: 400, ph: 'Travel one week a month. Tennis on Saturdays.' },
+  // Five blocks for adults and five for kids. A block is a title and a few fields: chips (one answer), multi (up to
+  // `pick` answers), text, area (a longer box) or num. Keys are shared between the two sets where a question means the
+  // same thing. The person's name comes from their account when they are signed in (p.js tells us through intakeWho).
+  const SPORT_PH = 'Volleyball, outside hitter';
+  const ADULT = [
+    { title: 'What you want', fields: [
+      { k: 'goal', t: 'chips', label: 'Main goal', req: 1, opts: ['Build muscle', 'Lose fat, keep muscle', 'Get stronger', 'Fitter and healthier', 'Sport performance'] },
+      { k: 'goalText', t: 'area', label: 'In your own words', max: 400, ph: 'Bigger shoulders and a stronger back. Ready for ski season in March.' },
+      { k: 'sport', t: 'text', label: 'Sport and position, if you train for one', max: 120, ph: SPORT_PH } ] },
+    { title: 'Your week', fields: [
+      { k: 'days', t: 'chips', label: 'Days a week you can train', req: 1, opts: ['2', '3', '4', '5', '6'] },
+      { k: 'mins', t: 'chips', label: 'Time for each session', req: 1, opts: ['30 min', '45 min', '60 min', '75 min', '90 min'] } ] },
+    { title: 'Where you train', fields: [
+      { k: 'where', t: 'chips', label: 'Place', req: 1, opts: ['Full gym', 'Home, with dumbbells', 'Home, little or no equipment'] },
+      { k: 'equip', t: 'text', label: 'Equipment worth knowing about', max: 300, ph: 'Dumbbells to 50 lb, a bench, a pull-up bar, bands' } ] },
+    { title: 'Training so far', fields: [
+      { k: 'exp', t: 'chips', label: 'Lifting experience', req: 1, opts: ['New, or back after a long break', 'Lifting under 2 years', 'Lifting 2 years or more'] },
+      { k: 'likes', t: 'area', label: 'Exercises you do now and like', req: 1, max: 800, ph: 'Bench press, lat pulldown, leg press, curls. Write none if you are new.' } ] },
+    { title: 'Things to work around', fields: [
+      { k: 'limits', t: 'area', label: 'Injuries, pain, or exercises to avoid', req: 1, max: 800, ph: 'Left shoulder pinches on overhead presses. No barbell back squats. Write none if there is nothing.' },
+      { k: 'age', t: 'num', label: 'Age', max: 3 },
+      { k: 'sex', t: 'chips', label: 'Sex', opts: ['Male', 'Female'] },
+      { k: 'other', t: 'area', label: 'Anything else', max: 800, ph: 'Travel one week a month. Tennis on Saturdays.' } ] },
   ];
+  const KID = [
+    { title: 'Your sport', fields: [
+      { k: 'sport', t: 'text', label: 'Sport and position', req: 1, max: 120, ph: SPORT_PH },
+      { k: 'level', t: 'chips', label: 'Level', req: 1, opts: ['Rec or PE', 'School team', 'Club', 'Club and school'] },
+      { k: 'season', t: 'chips', label: 'Right now', req: 1, opts: ['In season', 'Pre-season', 'Off season'] } ] },
+    { title: 'What to improve', fields: [
+      { k: 'improve', t: 'multi', label: 'Pick up to two', req: 1, pick: 2, opts: ['Jump higher', 'Quicker and more agile', 'Hit or throw harder', 'Last longer', 'Stronger all over', 'Fewer injuries'] },
+      { k: 'goalText', t: 'area', label: 'In your own words', max: 400, ph: 'Touch higher on blocks. Faster to the ball on defense.' } ] },
+    { title: 'Your week', fields: [
+      { k: 'practice', t: 'chips', label: 'Practices and games a week', req: 1, opts: ['0', '1', '2', '3', '4', '5 or more'] },
+      { k: 'days', t: 'chips', label: 'Other days you can train', req: 1, opts: ['1', '2', '3', '4'] },
+      { k: 'mins', t: 'chips', label: 'Time for each session', req: 1, opts: ['20 min', '30 min', '45 min', '60 min'] } ] },
+    { title: 'Where you train', fields: [
+      { k: 'where', t: 'chips', label: 'Place', req: 1, opts: ['School or club gym', 'Full gym, with an adult', 'Home, little or no equipment'] },
+      { k: 'exp', t: 'chips', label: 'Strength training so far', req: 1, opts: ['None yet', 'Some, with a team or in PE', 'Regular for a year or more'] },
+      { k: 'equip', t: 'text', label: 'Equipment worth knowing about', max: 300, ph: 'A box to jump on, bands, light dumbbells' } ] },
+    { title: 'Things to work around', fields: [
+      { k: 'limits', t: 'area', label: 'Injuries, pain, or things a doctor or coach said to avoid', req: 1, max: 800, ph: 'Knees ache after long practices. Write none if there is nothing.' },
+      { k: 'age', t: 'num', label: 'Age', req: 1, max: 2 },
+      { k: 'sex', t: 'chips', label: 'Sex', opts: ['Girl', 'Boy'] },
+      { k: 'other', t: 'area', label: 'Anything else', max: 800, ph: 'Tournament most weekends in November.' } ] },
+  ];
+  const NAME_Q = { k: 'name', t: 'text', label: 'Your first name', req: 1, max: 30 };
+  let who = { name: '', kind: 'adult' };
+  const blocks = () => {
+    const set = (who.kind === 'kid' ? KID : ADULT).map(b => ({ title: b.title, fields: b.fields.slice() }));
+    if (!who.name) set[0].fields.unshift(NAME_Q);
+    return set;
+  };
+  const fields = () => blocks().reduce((a, b) => a.concat(b.fields), []);
   let draft = {};
   try { draft = JSON.parse(localStorage.getItem(DRAFT) || '{}') || {}; } catch (e) { draft = {}; }
   const saveDraft = () => { try { localStorage.setItem(DRAFT, JSON.stringify(draft)); } catch (e) { /* ignore */ } };
+  const picked = q => { const v = draft[q.k]; return q.t === 'multi' ? (Array.isArray(v) ? v.filter(x => q.opts.includes(x)) : []) : (q.opts.includes(v) ? v : ''); };
   function question(q) {
-    const v = draft[q.k] == null ? '' : String(draft[q.k]), lab = '<span class="s-l">' + q.label + (q.req ? '' : ' <span class="fp-opt">(optional)</span>') + '</span>';
+    const v = q.t === 'chips' || q.t === 'multi' ? picked(q) : (draft[q.k] == null ? '' : String(draft[q.k]));
+    const lab = '<span class="s-l">' + q.label + (q.req ? '' : ' <span class="fp-opt">(optional)</span>') + '</span>';
     let field;
-    if (q.t === 'chips') field = '<div class="chips" role="group" aria-label="' + esc(q.label) + '">' + q.opts.map(o => '<button data-act="fpChip" data-q="' + q.k + '" data-v="' + esc(o) + '" aria-pressed="' + (v === o) + '">' + esc(o) + '</button>').join('') + '</div>';
-    else if (q.t === 'area') field = '<textarea id="in-' + q.k + '" rows="3" maxlength="' + q.max + '" placeholder="' + esc(q.ph || '') + '" aria-label="' + esc(q.label) + '">' + esc(v) + '</textarea>';
+    if (q.t === 'chips' || q.t === 'multi') {
+      const on = o => (q.t === 'multi' ? v.includes(o) : v === o);
+      field = '<div class="chips" role="group" aria-label="' + esc(q.label) + '">' + q.opts.map(o => '<button data-act="fpChip" data-q="' + q.k + '" data-v="' + esc(o) + '" aria-pressed="' + on(o) + '">' + esc(o) + '</button>').join('') + '</div>';
+    } else if (q.t === 'area') field = '<textarea id="in-' + q.k + '" rows="3" maxlength="' + q.max + '" placeholder="' + esc(q.ph || '') + '" aria-label="' + esc(q.label) + '">' + esc(v) + '</textarea>';
     else field = '<input class="input" id="in-' + q.k + '" type="text"' + (q.t === 'num' ? ' inputmode="numeric" pattern="[0-9]*"' : '') + ' maxlength="' + q.max + '" value="' + esc(v) + '" placeholder="' + esc(q.ph || '') + '" autocomplete="' + (q.k === 'name' ? 'given-name' : 'off') + '" aria-label="' + esc(q.label) + '">';
     return '<div class="fp-q" data-q="' + q.k + '">' + lab + field + '</div>';
   }
   function intakeSheet() {
-    openSheet('<h2>Get a plan built for you</h2><p class="fp-lede">Your answers become a plan built around the exercises you already do. Nothing leaves this phone until you send it.</p>' +
-      Q.map(question).join('') +
+    const lede = who.kind === 'kid' ? 'Five short parts. The plan is built around your sport, your week and what you want to get better at.'
+      : 'Five short parts. Your answers become a plan built around the exercises you already do. Nothing leaves this phone until you send it.';
+    openSheet('<h2>Get a plan built for you</h2><p class="fp-lede">' + lede + '</p>' +
+      blocks().map((b, i) => '<p class="fp-sub">' + (i + 1) + '. ' + esc(b.title) + '</p>' + b.fields.map(question).join('')).join('') +
       '<div class="frm" style="margin-top:22px"><button class="btn primary" data-act="fpSendIntake">Send to ' + ADMIN + '</button><button class="btn link" data-act="closeSheet">Close</button></div>');
   }
+  // The brief the coach reads. Kids get a header that switches the coach to youth rules.
   function intakeText(d) {
-    const L = ['FitPitt plan request', 'Name: ' + d.name, 'Goal: ' + d.goal + (d.goalText ? '. Details: ' + d.goalText : ''),
-      'Days a week: ' + d.days + ', about ' + d.mins + ' each', 'Where: ' + d.where + (d.equip ? '. Equipment: ' + d.equip : ''), 'Experience: ' + d.exp,
-      'Injuries or pain: ' + d.limits, 'Does now and likes: ' + d.likes];
-    if (d.avoid) L.push('Wants to avoid: ' + d.avoid);
+    const L = [];
     const as = [d.age ? 'Age: ' + d.age : '', d.sex ? 'Sex: ' + d.sex.toLowerCase() : ''].filter(Boolean).join('. ');
-    if (as) L.push(as);
+    if (d.kind === 'kid') {
+      L.push('FitPitt plan request for a kid (under 18): sport-focused, youth rules apply.', 'Name: ' + d.name);
+      if (as) L.push(as);
+      L.push('Sport and position: ' + d.sport + '. Level: ' + d.level + '. Right now: ' + d.season,
+        'Wants to improve: ' + d.improve + (d.goalText ? '. Details: ' + d.goalText : ''),
+        'Practices and games a week: ' + d.practice + '. Other days free to train: ' + d.days + ', about ' + d.mins + ' each',
+        'Where: ' + d.where + (d.equip ? '. Equipment: ' + d.equip : ''), 'Strength training so far: ' + d.exp,
+        'Injuries, pain or things to avoid: ' + d.limits);
+    } else {
+      L.push('FitPitt plan request', 'Name: ' + d.name, 'Goal: ' + d.goal + (d.goalText ? '. Details: ' + d.goalText : ''));
+      if (d.sport) L.push('Sport and position: ' + d.sport);
+      L.push('Days a week: ' + d.days + ', about ' + d.mins + ' each', 'Where: ' + d.where + (d.equip ? '. Equipment: ' + d.equip : ''), 'Experience: ' + d.exp,
+        'Does now and likes: ' + d.likes, 'Injuries, pain or exercises to avoid: ' + d.limits);
+      if (as) L.push(as);
+    }
     if (d.other) L.push('Other: ' + d.other);
     L.push('Sent from FitPitt on ' + fmtDate(new Date(), true) + '.');
     return L.join('\n');
   }
   ACT.fpIntake = () => intakeSheet();
   ACT.fpChip = t => {
-    const k = t.dataset.q, v = t.dataset.v; draft[k] = draft[k] === v ? '' : v; saveDraft();
-    t.parentNode.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === draft[k])));
+    const k = t.dataset.q, v = t.dataset.v, q = fields().find(x => x.k === k);
+    if (q && q.t === 'multi') {
+      const cur = picked(q);
+      if (cur.includes(v)) draft[k] = cur.filter(x => x !== v);
+      else if (cur.length >= q.pick) { toast('Pick up to ' + (q.pick === 2 ? 'two' : q.pick) + '. Tap one to drop it first.'); return; }
+      else draft[k] = cur.concat(v);
+      saveDraft();
+      t.parentNode.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(draft[k].includes(b.dataset.v))));
+    } else {
+      draft[k] = draft[k] === v ? '' : v; saveDraft();
+      t.parentNode.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === draft[k])));
+    }
     const box = t.closest('.fp-q'); if (box) box.classList.remove('fp-miss');
   };
   // The answers, checked. Returns null (and marks what is missing) until every required question is answered.
   function collectIntake() {
-    const d = {}; Q.forEach(q => { d[q.k] = String(draft[q.k] == null ? '' : draft[q.k]).trim(); });
+    const d = { kind: who.kind, name: who.name || '' };
+    const Q = fields();
+    Q.forEach(q => { d[q.k] = q.t === 'multi' ? picked(q).join(', ') : q.t === 'chips' ? picked(q) : String(draft[q.k] == null ? '' : draft[q.k]).trim(); });
+    if (who.name) d.name = who.name;
     const miss = Q.filter(q => q.req && !d[q.k]);
     document.querySelectorAll('.fp-q').forEach(el => el.classList.toggle('fp-miss', miss.some(q => q.k === el.dataset.q)));
     if (miss.length) { const el = document.querySelector('.fp-q.fp-miss'); if (el) el.scrollIntoView({ block: 'center', behavior: 'smooth' }); toast(miss.length === 1 ? 'One more: ' + miss[0].label.toLowerCase() + '.' : miss.length + ' questions still need an answer. They are marked.'); return null; }
@@ -251,7 +320,8 @@
   }
   window.addEventListener('hashchange', fromLink); // a link opened in a page that already shows FitPitt
   // Used by the account add-on (p.js), which builds plans through the coach instead of a text to Gabe.
-  window.FP_UI = { openText, collectIntake, intakeText, previewPlan(plan, code, notes) { pend = { plan, code: code || '', notes: notes || [] }; previewSheet(); }, intakeSheet };
+  window.FP_UI = { openText, collectIntake, intakeText, previewPlan(plan, code, notes) { pend = { plan, code: code || '', notes: notes || [] }; previewSheet(); }, intakeSheet,
+    intakeWho(w) { who = { name: String((w && w.name) || '').slice(0, 30), kind: w && w.kind === 'kid' ? 'kid' : 'adult' }; } };
   fromLink();
   onRender();
 })();

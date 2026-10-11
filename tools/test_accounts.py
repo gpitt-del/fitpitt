@@ -166,6 +166,35 @@ async def main():
         st, r = api('GET', '/admin/jobs?limit=1', token=gabe_token)
         ok("the job is on Gabe's side with a cost", r['jobs'][0]['person_name'] == 'Mike' and r['jobs'][0]['kind'] == 'plan' and r['jobs'][0]['cost_usd'] > 0, r)
 
+        # ---------- 3b. A kid: Gabe adds Anderson as Kid; her intake is about her sport; the coach gets the youth rules ----------
+        st, r = api('POST', '/admin/people', {'name': 'Anderson', 'role': 'kid'}, token=gabe_token)
+        assert st == 201, r
+        inv = r['invite']
+        ctx_k, kid = await newpage(browser, tag='kid')
+        await kid.goto(SITE); await kid.wait_for_selector('#app h1')
+        await kid.click('[data-act="fpJoin"]'); await wait_sheet(kid, 'Sign in with an invite')
+        await kid.fill('#fp-join', inv['code']); await kid.click('[data-act="fpJoinSend"]')
+        await kid.wait_for_function("document.querySelector('#toast') && /Signed in as Anderson/.test(document.querySelector('#toast').textContent)")
+        await kid.click('[data-act="fpIntake"]'); await wait_sheet(kid, 'Get a plan built for you')
+        sheet = await kid.inner_text('#sheet')
+        ok('a kid gets the sport intake, five blocks, no name field', await kid.locator('#sheet .fp-sub').count() == 5 and 'Your sport' in sheet and 'What to improve' in sheet and await kid.locator('#in-name').count() == 0, sheet[:300])
+        await kid.fill('#in-sport', 'Volleyball, setter')
+        for q, v in [('level', 'Club'), ('season', 'In season'), ('improve', 'Jump higher'), ('improve', 'Quicker and more agile'), ('improve', 'Hit or throw harder'),
+                     ('practice', '3'), ('days', '2'), ('mins', '30 min'), ('where', 'School or club gym'), ('exp', 'None yet'), ('sex', 'Girl')]:
+            await kid.click('[data-act="fpChip"][data-q="%s"][data-v="%s"]' % (q, v))
+        pressed = await kid.eval_on_selector_all('[data-act="fpChip"][data-q="improve"][aria-pressed="true"]', 'els => els.map(e => e.dataset.v)')
+        ok('pick up to two: a third choice is refused', pressed == ['Jump higher', 'Quicker and more agile'], pressed)
+        await kid.fill('#in-limits', 'none'); await kid.fill('#in-age', '13')
+        text = await kid.evaluate('window.FP_UI.intakeText(window.FP_UI.collectIntake())')
+        ok('the kid brief names the sport, the season, the goals and the week', all(x in text for x in ['for a kid (under 18)', 'Name: Anderson', 'Age: 13. Sex: girl', 'Volleyball, setter. Level: Club. Right now: In season', 'Wants to improve: Jump higher, Quicker and more agile', 'Practices and games a week: 3. Other days free to train: 2, about 30 min each']), text)
+        await kid.click('[data-act="fpSendIntake"]'); await wait_sheet(kid, 'Building your plan')
+        await wait_sheet(kid, "Anderson's plan", 60000)
+        ok("the kid's plan comes back in the preview", 'Made for Anderson' in await kid.inner_text('#sheet'))
+        calls = json.loads(urllib.request.urlopen('http://127.0.0.1:%d/__calls' % MOCK_PORT, timeout=10).read())['calls']
+        last = calls[-1]
+        ok('the coach got the youth rules for a kid, and not for Mike', 'under 18 and trains for a sport' in last['system'][0]['text'] and not any('under 18 and trains for a sport' in c['system'][0]['text'] for c in calls[:-1] if 'Build a FitPitt plan for Mike' in json.dumps(c['messages'])))
+        await ctx_k.close()
+
         # ---------- 4. A workout syncs to a second phone ----------
         await mike.click('[data-act="start"]'); await mike.wait_for_selector('#app .ex')
         ok('Ask the coach is on the workout screen', await mike.locator('[data-act="fpAsk"]').count() == 1)
@@ -218,7 +247,7 @@ async def main():
 
         # ---------- 6. A plan build survives closing the sheet and reopening the app ----------
         await mike2.click('#tabs [data-tab="settings"]'); await mike2.click('#fp-set [data-act="fpIntake"]'); await wait_sheet(mike2, 'Get a plan built for you')
-        await mike2.fill('#in-name', 'Mike')
+        ok('signed in, the intake takes the name from the account', await mike2.locator('#in-name').count() == 0)
         for q, v in [('goal', 'Get stronger'), ('days', '3'), ('mins', '45 min'), ('where', 'Full gym'), ('exp', 'Lifting under 2 years')]:
             await mike2.click('[data-act="fpChip"][data-q="%s"][data-v="%s"]' % (q, v))
         await mike2.fill('#in-limits', 'none'); await mike2.fill('#in-likes', 'squats')

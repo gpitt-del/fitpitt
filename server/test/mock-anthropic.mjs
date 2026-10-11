@@ -26,6 +26,27 @@ export function start(port = 0) {
       req.on('data', c => { body += c; });
       req.on('end', async () => {
         const reply = (status, obj) => { res.writeHead(status, { 'content-type': 'application/json' }); res.end(JSON.stringify(obj)); };
+        // A finished message, sent the way the API streams it when the request asked for a stream: thinking first
+        // (a thinking block with a signature, as adaptive thinking produces), then text and tool blocks in small deltas.
+        const send = (b, m) => {
+          if (!b.stream) return reply(200, m);
+          res.writeHead(200, { 'content-type': 'text/event-stream' });
+          const ev = (name, d) => res.write('event: ' + name + '\ndata: ' + JSON.stringify(Object.assign({ type: name }, d)) + '\n\n');
+          const u = m.usage;
+          ev('message_start', { message: { id: m.id, type: 'message', role: 'assistant', model: m.model, content: [], stop_reason: null, stop_sequence: null, usage: { input_tokens: u.input_tokens, cache_creation_input_tokens: u.cache_creation_input_tokens, cache_read_input_tokens: u.cache_read_input_tokens, output_tokens: 1 } } });
+          const content = [{ type: 'thinking', thinking: 'Working out the split from the answers.', signature: 'sig_test' }, ...m.content];
+          content.forEach((c, i) => {
+            if (c.type === 'thinking') { ev('content_block_start', { index: i, content_block: { type: 'thinking', thinking: '' } }); ev('content_block_delta', { index: i, delta: { type: 'thinking_delta', thinking: c.thinking } }); ev('content_block_delta', { index: i, delta: { type: 'signature_delta', signature: c.signature } }); }
+            else if (c.type === 'text') { ev('content_block_start', { index: i, content_block: { type: 'text', text: '' } }); for (const part of c.text.match(/.{1,7}/g) || []) ev('content_block_delta', { index: i, delta: { type: 'text_delta', text: part } }); }
+            else if (c.type === 'tool_use') { ev('content_block_start', { index: i, content_block: { type: 'tool_use', id: c.id, name: c.name, input: {} } }); for (const part of JSON.stringify(c.input).match(/[\s\S]{1,40}/g) || []) ev('content_block_delta', { index: i, delta: { type: 'input_json_delta', partial_json: part } }); }
+            ev('ping', {});
+            ev('content_block_stop', { index: i });
+          });
+          ev('message_delta', { delta: { stop_reason: m.stop_reason, stop_sequence: null }, usage: { output_tokens: u.output_tokens } });
+          ev('message_stop', {});
+          res.end();
+        };
+        if (req.url === '/__calls' && req.method === 'GET') return reply(200, { calls }); // what the coach was told, for tests
         if (req.url !== '/v1/messages' || req.method !== 'POST') return reply(404, { error: { message: 'not found' } });
         if (req.headers['x-api-key'] !== 'test-key') return reply(401, { type: 'error', error: { type: 'authentication_error', message: 'invalid x-api-key' } });
         let b; try { b = JSON.parse(body); } catch (e) { return reply(400, { error: { message: 'bad json' } }); }
@@ -42,13 +63,13 @@ export function start(port = 0) {
           let plan = fullPlan(sample, name);
           if (text.includes('badplan') && !isFix) plan = Object.assign({}, plan, { name: '' }); // first try broken, fixed on the second
           if (text.includes('hopeless')) plan = Object.assign({}, plan, { days: [] });
-          return reply(200, { id: 'msg_test', type: 'message', role: 'assistant', model: b.model, stop_reason: 'tool_use', usage,
+          return send(b, { id: 'msg_test', type: 'message', role: 'assistant', model: b.model, stop_reason: 'tool_use', usage,
             content: [{ type: 'text', text: 'Here is the plan.' }, { type: 'tool_use', id: 'toolu_1', name: 'submit_plan', input: plan }] });
         }
         const kind = text.includes('Review this week') ? 'review' : 'ask';
         const answer = kind === 'review' ? 'Good week: three of four sessions done. Next week keep the bench at 135 and get all three sets to 10, then it goes to 140. Sleep notes say two short nights; keep the deload as planned.'
           : 'Keep the weight the same and add a rep per set this week. Rest 2 minutes on the big lifts.';
-        return reply(200, { id: 'msg_test', type: 'message', role: 'assistant', model: b.model, stop_reason: 'end_turn', usage, content: [{ type: 'text', text: answer }] });
+        return send(b, { id: 'msg_test', type: 'message', role: 'assistant', model: b.model, stop_reason: 'end_turn', usage, content: [{ type: 'text', text: answer }] });
       });
     });
     srv.listen(port, '127.0.0.1', () => resolve({ server: srv, port: srv.address().port, calls }));

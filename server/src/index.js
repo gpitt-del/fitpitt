@@ -151,7 +151,7 @@ async function createJobWith(b, env, me) {
   const all = await monthCost(env, null);
   if (s.ceiling_usd && all >= s.ceiling_usd) throw new HttpError(402, "The coach's monthly budget for everyone is used up. Ask the builder.", { code: 'ceiling' });
   const input = {};
-  if (kind === 'plan') { input.intake = str(b.intake, 4000); if (!input.intake) throw new HttpError(400, 'Send the intake answers.'); input.note = str(b.note, 1000); }
+  if (kind === 'plan') { input.intake = str(b.intake, 6000); if (!input.intake) throw new HttpError(400, 'Send the intake answers.'); input.note = str(b.note, 1000); }
   if (kind === 'review') { input.log = String(b.log || '').slice(0, 14000); if (!input.log.trim()) throw new HttpError(400, 'Send the log to review.'); }
   if (kind === 'ask') { input.question = str(b.question, 1000); if (!input.question) throw new HttpError(400, 'Ask a question.'); input.context = String(b.context || '').slice(0, 4000); }
   if (kind !== 'ask' && b.log && kind === 'plan') input.log = String(b.log).slice(0, 12000);

@@ -51,15 +51,28 @@ ${CATALOGUE.join(' · ')}
 - Field limits: name 40 characters, goal 120, line 140, day name 30, short 18, exercise name 60, cue 160, rules 300 each. Sets 1 to 8. perWeek 1 to 7. Up to 6 days, 14 exercises a day.
 - Fill every field of submit_plan. Use "" for a text field you have nothing for, false for a flag you do not want, "" for per when it does not apply.`;
 
-export function systemFor(kind) {
-  return [{ type: 'text', text: kind === 'plan' ? WHO + '\n\n' + PLAN_GUIDE : WHO, cache_control: { type: 'ephemeral' } }];
+// Kids (the `kid` role) get the youth rules on top. Positions: Lloyd et al. 2014 international consensus on youth
+// resistance training; the AAP's 2020 statement. Supervised maximal testing is fine in youth once technique is solid,
+// so competitions on jumps, throws and sprints are in; what stays out is maxing a lift they have not learned yet.
+const YOUTH = `This person is under 18 and trains for a sport. Youth rules, on top of everything above:
+- The plan serves their sport: strength, jumping, landing, sprinting and change of direction, shoulder and trunk work for throwing or hitting sports. Fit it around practices and games; nothing hard the day before a game, and in season two sessions a week is enough.
+- Technique before load. Bodyweight, dumbbells, goblet and split-squat patterns first; barbell lifts only once the pattern is clean and with an adult present. Loads that leave 2 or more reps in reserve on working sets.
+- Max efforts are allowed: jump, throw and sprint tests any time (they compete on these), and heavy lifts with good technique and an adult present. On a lift they have done for under a month, test a 3- to 5-rep max rather than a single.
+- Jumping and landing: teach the landing first (quiet, knees over toes, hips back); low volume (about 40 to 80 ground contacts a session), two days between jump sessions, and warm-ups that include balance, hip and hamstring work and landing or cutting drills, which cut knee injuries in adolescent athletes, especially girls.
+- Growth: during a growth spurt or with aching knees or heels, ease the jumping and the loads and say so. Pain stays a stop sign.
+- Sessions of 20 to 45 minutes; keep the exercise list short and name the sport purpose of each day in its name.`;
+
+export function systemFor(kind, person) {
+  const kid = person && person.role === 'kid';
+  const text = (kind === 'plan' ? WHO + '\n\n' + PLAN_GUIDE : WHO) + (kid ? '\n\n' + YOUTH : '');
+  return [{ type: 'text', text, cache_control: { type: 'ephemeral' } }];
 }
 
 const lim = (s, n) => String(s == null ? '' : s).slice(0, n);
 export function userMessageFor(kind, input, person) {
   const name = person.name || 'the person';
   if (kind === 'plan') {
-    const lines = ['Build a FitPitt plan for ' + name + ' from these answers, then call submit_plan with it. Today is ' + new Date().toISOString().slice(0, 10) + '.', '', lim(input.intake, 4000)];
+    const lines = ['Build a FitPitt plan for ' + name + ' from these answers, then call submit_plan with it. Today is ' + new Date().toISOString().slice(0, 10) + '.', '', lim(input.intake, 6000)];
     if (input.currentPlan) lines.push('', 'Their current plan, for continuity (keep exercise names the same where the lift stays the same, because history follows the name):', lim(JSON.stringify(input.currentPlan), 12000));
     if (input.log) lines.push('', 'Their recent log:', lim(input.log, 12000));
     if (input.note) lines.push('', 'What they want changed: ' + lim(input.note, 1000));
@@ -76,24 +89,89 @@ export const TOOLS = [{ name: 'submit_plan', description: 'Submit the finished F
 
 const CALL_LIMIT = 9.5 * 60 * 1000; // under the API's ten-minute limit for a non-streaming call
 
-/** One call to the Messages API. Returns { message, usage, text, toolInput, stop }. Throws on network or API errors. */
+/** One call to the Messages API, streamed. Returns { message, usage, text, toolInput, stop }. Throws on network or API errors.
+ *  Streamed because a plan with thinking can take minutes, and a reply held back until it is complete gets cut off by
+ *  the API's front door (an HTTP 524 after about 100 seconds of silence). The stream is put back together here into
+ *  the same message object a plain call returns, thinking blocks and signatures included, so a repair round can hand
+ *  the assistant turn back unchanged. */
 export async function callClaude(env, body, msLeft) {
   const base = (env.ANTHROPIC_BASE_URL || 'https://api.anthropic.com').replace(/\/$/, '');
   const budget = Math.min(CALL_LIMIT, msLeft == null ? CALL_LIMIT : msLeft);
   if (budget < 30000) throw Object.assign(new Error('Out of time for this call.'), { retryable: false });
   const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), budget);
+  const tooLong = () => Object.assign(new Error('The coach took too long to answer.'), { retryable: false });
   let res;
   try {
-    res = await fetch(base + '/v1/messages', { method: 'POST', signal: ctl.signal, headers: { 'content-type': 'application/json', 'x-api-key': env.ANTHROPIC_API_KEY || '', 'anthropic-version': API_VERSION }, body: JSON.stringify(body) });
-  } catch (e) { throw Object.assign(new Error(e && e.name === 'AbortError' ? 'The coach took too long to answer.' : 'Could not reach the Claude API.'), { retryable: !(e && e.name === 'AbortError') }); }
+    res = await fetch(base + '/v1/messages', { method: 'POST', signal: ctl.signal, headers: { 'content-type': 'application/json', 'x-api-key': env.ANTHROPIC_API_KEY || '', 'anthropic-version': API_VERSION }, body: JSON.stringify(Object.assign({}, body, { stream: true })) });
+  } catch (e) { clearTimeout(timer); if (e && e.name === 'AbortError') throw tooLong(); throw Object.assign(new Error('Could not reach the Claude API.'), { retryable: true }); }
+  if (!res.ok) {
+    clearTimeout(timer);
+    const text = await res.text().catch(() => ''); let data = null; try { data = JSON.parse(text); } catch (e) { /* not JSON */ }
+    const e = new Error((data && data.error && data.error.message) || ('Claude API ' + res.status)); e.status = res.status; e.retryable = res.status === 429 || res.status === 529 || res.status >= 500; throw e;
+  }
+  let data;
+  try { data = await readStream(res); } catch (e) { if (e && e.name === 'AbortError') throw tooLong(); throw e; }
   finally { clearTimeout(timer); }
-  const text = await res.text();
-  let data = null; try { data = JSON.parse(text); } catch (e) { /* not JSON */ }
-  if (!res.ok) { const e = new Error((data && data.error && data.error.message) || ('Claude API ' + res.status)); e.status = res.status; e.retryable = res.status === 429 || res.status === 529 || res.status >= 500; throw e; }
-  const content = (data && data.content) || [];
+  const content = data.content || [];
   const out = { message: data, usage: data.usage || {}, text: content.filter(c => c.type === 'text').map(c => c.text).join('\n').trim(), toolInput: null, stop: data.stop_reason };
-  const tool = content.find(c => c.type === 'tool_use'); if (tool) out.toolInput = tool.input;
+  const tool = content.find(c => c.type === 'tool_use'); if (tool && tool.input && typeof tool.input === 'object') out.toolInput = tool.input;
   return out;
+}
+
+// Server-sent events from /v1/messages, assembled into one message. An `error` event mid-stream is retryable.
+async function readStream(res) {
+  const blocks = [];
+  const msg = { id: null, type: 'message', role: 'assistant', model: null, content: blocks, stop_reason: null, stop_sequence: null, usage: {} };
+  const apply = (name, d) => {
+    switch (name) {
+      case 'message_start': { const m = d.message || {}; msg.id = m.id || null; msg.model = m.model || null; Object.assign(msg.usage, m.usage || {}); break; }
+      case 'content_block_start': {
+        const b = Object.assign({}, d.content_block || {});
+        if (b.type === 'text') b.text = b.text || '';
+        if (b.type === 'thinking') b.thinking = b.thinking || '';
+        if (b.type === 'tool_use') { b.input = b.input && Object.keys(b.input).length ? b.input : null; Object.defineProperty(b, '_json', { value: '', writable: true, enumerable: false }); }
+        blocks[d.index] = b; break;
+      }
+      case 'content_block_delta': {
+        const b = blocks[d.index], x = d.delta || {}; if (!b) break;
+        if (x.type === 'text_delta') b.text += x.text || '';
+        else if (x.type === 'input_json_delta') b._json += x.partial_json || '';
+        else if (x.type === 'thinking_delta') b.thinking += x.thinking || '';
+        else if (x.type === 'signature_delta') b.signature = x.signature || '';
+        break;
+      }
+      case 'content_block_stop': {
+        const b = blocks[d.index]; if (!b || b.type !== 'tool_use') break;
+        if (b.input == null) { try { b.input = b._json ? JSON.parse(b._json) : {}; } catch (e) { b.input = null; } }
+        break;
+      }
+      case 'message_delta': { const x = d.delta || {}; if (x.stop_reason) msg.stop_reason = x.stop_reason; if ('stop_sequence' in x) msg.stop_sequence = x.stop_sequence; Object.assign(msg.usage, d.usage || {}); break; }
+      case 'error': throw Object.assign(new Error((d.error && d.error.message) || 'The Claude API stopped mid-answer.'), { retryable: true });
+      default: break; // ping, message_stop
+    }
+  };
+  const reader = res.body.getReader(), dec = new TextDecoder();
+  let buf = '', done = false;
+  const takeEvent = raw => {
+    let name = '', dataLines = [];
+    for (const line of raw.split('\n')) {
+      if (line.startsWith('event:')) name = line.slice(6).trim();
+      else if (line.startsWith('data:')) dataLines.push(line.slice(5).trim());
+    }
+    if (!dataLines.length) return;
+    let d; try { d = JSON.parse(dataLines.join('\n')); } catch (e) { return; }
+    apply(name || d.type, d);
+  };
+  while (!done) {
+    const r = await reader.read(); done = r.done;
+    if (r.value) buf += dec.decode(r.value, { stream: true });
+    let at;
+    while ((at = buf.indexOf('\n\n')) >= 0) { const raw = buf.slice(0, at); buf = buf.slice(at + 2); if (raw.trim()) takeEvent(raw); }
+  }
+  if (buf.trim()) takeEvent(buf);
+  msg.content = blocks.filter(Boolean);
+  if (!msg.stop_reason && !msg.content.length) throw Object.assign(new Error('The Claude API sent an empty answer.'), { retryable: true });
+  return msg;
 }
 
 /** Runs one job end to end. Returns { output, usages, model, effort }; throws { message, retryable, usages }.
@@ -102,7 +180,7 @@ export async function callClaude(env, body, msLeft) {
 export async function runJob(env, job, person, settings, memo, deadline) {
   const task = settings.tasks[job.kind] || settings.tasks.ask, input = JSON.parse(job.input || '{}');
   const usages = [], left = () => (deadline || (Date.now() + 14 * 60000)) - Date.now();
-  const base = { model: task.model, max_tokens: task.max_tokens, output_config: { effort: task.effort }, system: systemFor(job.kind) };
+  const base = { model: task.model, max_tokens: task.max_tokens, output_config: { effort: task.effort }, system: systemFor(job.kind, person) };
   const messages = [{ role: 'user', content: userMessageFor(job.kind, input, person) }];
   const fail = msg => Object.assign(new Error(msg), { retryable: false, usages });
   const ask = async (n, body) => {

@@ -209,6 +209,10 @@
     } catch (e) { busy(e); }
   };
 
+  // Who is answering the intake: the account's name and, for a kid account, the sport-focused question set.
+  function tellIntake() { UI.intakeWho(acct ? { name: acct.person.name, kind: acct.person.role === 'kid' ? 'kid' : 'adult' } : { name: '', kind: 'adult' }); }
+  const intake0 = ACT.fpIntake;
+  ACT.fpIntake = () => { tellIntake(); intake0(); };
   // Build my plan: the intake sheet's button. Nothing is ever texted to Gabe; without an account the answers wait on the phone.
   ACT.fpSendIntake = () => {
     const d = UI.collectIntake(); if (!d) return;

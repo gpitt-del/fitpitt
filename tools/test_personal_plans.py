@@ -113,7 +113,9 @@ async def main():
         await page.click('[data-act="fpChip"][data-q="goal"][data-v="Build muscle"]')
         await page.click('[data-act="fpSendIntake"]')
         miss = await page.eval_on_selector_all('.fp-q.fp-miss', 'els => els.map(e => e.dataset.q)')
-        ok('missing answers are marked', miss == ['days', 'mins', 'where', 'exp', 'limits', 'likes'], miss)
+        ok('missing answers are marked', miss == ['days', 'mins', 'where', 'exp', 'likes', 'limits'], miss)
+        ok('the intake is five blocks', await page.locator('#sheet .fp-sub').count() == 5 and 'Things to work around' in await page.inner_text('#sheet'))
+        ok('text boxes allow long answers', int(await page.get_attribute('#in-likes', 'maxlength')) >= 800 and int(await page.get_attribute('#in-limits', 'maxlength')) >= 800)
         ok('nothing shared while answers are missing', await page.evaluate('window.__shared.length') == 0)
         await page.click('[data-act="fpChip"][data-q="days"][data-v="4"]')
         await page.click('[data-act="fpChip"][data-q="mins"][data-v="60 min"]')
@@ -140,7 +142,7 @@ async def main():
         ok('intake button is Save my answers', (await page.inner_text('[data-act="fpSendIntake"]')).strip() == 'Save my answers')
         text = await page.evaluate('window.FP_UI.intakeText(window.FP_UI.collectIntake())')
         expect = ['FitPitt plan request', 'Name: Mike', 'Goal: Build muscle', 'Days a week: 4, about 60 min each', 'Where: Full gym', 'Experience: Lifting under 2 years',
-                  'Injuries or pain: Left shoulder pinches on overhead presses', 'Does now and likes: Bench press, lat pulldown, leg press, curls', 'Age: 41. Sex: male']
+                  'Injuries, pain or exercises to avoid: Left shoulder pinches on overhead presses', 'Does now and likes: Bench press, lat pulldown, leg press, curls', 'Age: 41. Sex: male']
         ok('intake text has every answer', all(x in text for x in expect), text)
         print('---- intake text ----\n' + text + '\n---------------------')
         await page.click('[data-act="fpSendIntake"]')

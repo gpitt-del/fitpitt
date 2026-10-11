@@ -8,7 +8,7 @@ one Durable Object class that runs coach jobs after the phone has gone away. The
 - `src/index.js`: the API (routes, sign-in, sync, admin). `src/job.js`: the Durable Object that runs a coach job.
   `src/coach.js`: prompts, the Claude call, plan checking. `src/plan.js`: the plan format, the same checks as the app's `n.js`.
   `src/schema.js`: the database, created on first use. `src/settings.js`: flags, stops, models, prices.
-- `test/run.mjs`: 58 checks against a local Worker and `test/mock-anthropic.mjs`, a stand-in Claude.
+- `test/run.mjs`: 61 checks against a local Worker and `test/mock-anthropic.mjs`, a stand-in Claude (it streams like the real API, and `GET /__calls` shows what the coach was told).
   `tools/test_accounts.py` (repo root) runs the app and this server together in simulated phones.
 
 ## Endpoints (JSON; `Authorization: Bearer <device token>` except where noted)
@@ -52,11 +52,9 @@ node test/run.mjs                                   # or: the full suite, which 
 
 ## First smoke test after deploying
 Sign in as admin on a phone, Settings → Get a plan built for you → Build my plan, and watch Settings → FitPitt admin →
-Recent coach calls. The stand-in used in tests accepts any tool schema; the real API has not been called yet. If the
-first plan fails with an API error about the tool or schema, loosen `TOOLS` in `src/coach.js` (drop `strict: true`
-first). `npx wrangler tail` shows the Worker's logs live.
+Recent coach calls. The first real attempt (Oct 11 2026) was cut off by the API's front door with a 524 after about 100 seconds because the reply was not streamed; calls are streamed now. The strict tool schema has still not been accepted by the real model in a finished call: if the first plan fails with an API error about the tool or schema, drop `strict: true` from `TOOLS` in `src/coach.js` first. `npx wrangler tail` shows the Worker's logs live.
 
 ## Not done yet
-- Kids' mode: a kid account exists in the data model (role `kid`, `parent_id`), but the app does not yet limit a kid's coach to volleyball.
+- Kids' competitions. A kid account (role `kid`) already gets the sport-focused intake and the youth rules in the coach's prompt.
 - Push notifications when a plan is ready (the app checks when it is opened or comes to the front).
 - Email sign-in; a domain of its own.
