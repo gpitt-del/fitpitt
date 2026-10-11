@@ -23,7 +23,7 @@ export async function putSettings(env, patch) {
     for (const [task, t] of Object.entries(patch.tasks)) {
       if (!cur.tasks[task] || !t || typeof t !== 'object') continue;
       const o = Object.assign({}, cur.tasks[task]);
-      if (typeof t.model === 'string' && /^[a-z0-9.-]{3,64}$/.test(t.model)) o.model = t.model;
+      if (typeof t.model === 'string' && /^[a-z0-9.-]{3,64}$/.test(t.model)) { if (!cur.prices[t.model] && !(patch.prices && patch.prices[t.model])) throw new Error('No price is known for ' + t.model + '. Add its prices first.'); o.model = t.model; }
       if (['low', 'medium', 'high', 'xhigh', 'max'].includes(t.effort)) o.effort = t.effort;
       if (Number.isInteger(t.max_tokens) && t.max_tokens >= 500 && t.max_tokens <= 64000) o.max_tokens = t.max_tokens;
       cur.tasks[task] = o;
@@ -44,7 +44,9 @@ export async function putSettings(env, patch) {
 
 // Dollars for one call, from the response's usage and the price table. Prices are per million tokens.
 export function costOf(prices, model, usage) {
-  const p = prices[model]; if (!p || !usage) return 0;
+  if (!usage) return 0;
+  // An unknown model is charged at the dearest known price, so a mistake can never make the coach free.
+  const p = prices[model] || Object.values(prices).reduce((a, x) => (!a || x.out > a.out ? x : a), null); if (!p) return 0;
   const n = k => +usage[k] || 0;
   return (n('input_tokens') * p.in + n('output_tokens') * p.out + n('cache_read_input_tokens') * p.cache_read + n('cache_creation_input_tokens') * p.cache_write) / 1e6;
 }

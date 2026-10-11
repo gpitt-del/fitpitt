@@ -34,11 +34,12 @@ CREATE TABLE IF NOT EXISTS docs (
   kind TEXT NOT NULL,                        -- meta | active | session | scan | plan | intake
   id TEXT NOT NULL,
   u INTEGER NOT NULL,                        -- the app's update stamp; the newer stamp wins
+  seq INTEGER NOT NULL DEFAULT 0,            -- server-side order of arrival; phones pull by it, so nothing is skipped
   deleted INTEGER NOT NULL DEFAULT 0,
   body TEXT NOT NULL,                        -- JSON
   PRIMARY KEY (person_id, kind, id)
 );
-CREATE INDEX IF NOT EXISTS docs_person_u ON docs (person_id, u);
+CREATE INDEX IF NOT EXISTS docs_person_seq ON docs (person_id, seq);
 CREATE TABLE IF NOT EXISTS jobs (
   id TEXT PRIMARY KEY,
   person_id TEXT NOT NULL,
@@ -60,6 +61,7 @@ CREATE TABLE IF NOT EXISTS jobs (
   cost_usd REAL NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS jobs_person_created ON jobs (person_id, created);
+CREATE UNIQUE INDEX IF NOT EXISTS jobs_one_open ON jobs (person_id) WHERE status IN ('queued', 'running');
 CREATE TABLE IF NOT EXISTS settings (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL                        -- JSON

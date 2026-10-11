@@ -61,6 +61,8 @@ try {
   const mikeId = r.data.person.id, code = r.data.invite.code;
   r = await call('POST', '/join', { code: 'ZZZZ-ZZZZ' });
   ok('a wrong code is refused', r.status === 404);
+  r = await call('POST', '/join', { code, check: true });
+  ok('a check-only join names the person without spending a use', r.status === 200 && r.data.person.name === 'Mike' && !r.data.token, r.data);
   r = await call('POST', '/join', { code: code.toLowerCase().replace('-', ' '), device: 'iPhone' });
   ok('the code works typed loosely', r.status === 200 && r.data.person.name === 'Mike', r.data);
   const mike = r.data.token;
@@ -82,16 +84,22 @@ try {
     { kind: 'scan', id: 'b1', u: t1, body: { id: 'b1', weight: 200 } },
     { kind: 'bogus', id: 'x', u: t1, body: {} },
   ] }, mike);
-  ok('push from phone 1', r.status === 200 && r.data.acks.length === 3 && r.data.docs.length === 3, r.data);
-  const now1 = r.data.now;
+  ok('push from phone 1', r.status === 200 && r.data.acks.length === 3 && r.data.docs.length === 3 && r.data.cursor > 0, r.data);
+  const cur1 = r.data.cursor;
   r = await call('POST', '/sync', { since: 0, docs: [] }, mike2);
   ok('phone 2 pulls everything', r.data.docs.length === 3 && r.data.docs.find(d => d.kind === 'meta').body.program === 'mine');
   r = await call('POST', '/sync', { since: 0, docs: [{ kind: 'session', id: 's1', u: t1 - 1000, body: { id: 's1', day: 'OLD' } }] }, mike2);
   ok('an older copy does not overwrite', r.data.docs.find(d => d.id === 's1').body.day === 'A');
   r = await call('POST', '/sync', { since: 0, docs: [{ kind: 'session', id: 's1', u: t1 + 1000, deleted: true }] }, mike2);
   ok('a deletion wins with a newer stamp', r.data.docs.find(d => d.id === 's1').deleted === true);
-  r = await call('POST', '/sync', { since: now1, docs: [] }, mike);
-  ok('phone 1 asks for changes since its sync and gets only the deletion', r.data.docs.length === 1 && r.data.docs[0].deleted);
+  r = await call('POST', '/sync', { since: cur1, docs: [] }, mike);
+  ok('phone 1 asks for changes since its cursor and gets only the deletion', r.data.docs.length === 1 && r.data.docs[0].deleted);
+  const cur2 = r.data.cursor;
+  // A workout logged offline hours ago and pushed now carries an old stamp but must still reach the other phone.
+  r = await call('POST', '/sync', { since: 0, docs: [{ kind: 'session', id: 'offline1', u: t1 - 3600000, body: { id: 'offline1', day: 'B' } }] }, mike2);
+  r = await call('POST', '/sync', { since: cur2, docs: [] }, mike);
+  ok('an old-stamped doc pushed later still arrives on the other phone', r.data.docs.length === 1 && r.data.docs[0].id === 'offline1', r.data);
+
   r = await call('POST', '/sync', { since: 0, docs: [] }, gabe);
   ok("the admin's sync never shows Mike's docs", r.data.docs.length === 0);
 
@@ -113,6 +121,18 @@ try {
   r = await call('POST', '/coach/jobs', { kind: 'plan', intake: 'Name: Mike hopeless' }, mike);
   job = await waitJob(mike, r.data.job.id);
   ok('a plan that cannot be fixed fails with a reason', job.status === 'failed' && /could not fix/.test(job.error), job);
+  ok('a failed job is still billed for its two calls', job.cost_usd > planCost && job.tokens.in === 5200, job);
+  process.env.SLOW_MS = '2500'; // the stand-in answers slowly for a moment, so the job is still running when the next requests arrive
+  r = await call('POST', '/coach/jobs', { kind: 'plan', intake: 'Name: Mike' }, mike); const pj = r.data.job.id;
+  r = await call('POST', '/coach/jobs', { kind: 'ask', question: 'Hi?' }, mike);
+  ok('a second request of another kind while one runs is refused plainly', r.status === 409 && r.data.code === 'busy' && /still working on your plan/.test(r.data.error), r.data);
+  r = await call('POST', '/coach/jobs', { kind: 'plan', intake: 'Name: Mike' }, mike);
+  ok('the same kind again is handed the running job', r.status === 202 && r.data.reused === true && r.data.job.id === pj);
+  await waitJob(mike, pj);
+  const burst = await Promise.all([1, 2, 3, 4].map(() => call('POST', '/coach/jobs', { kind: 'ask', question: 'burst' }, mike)));
+  ok('four taps at once make one job', new Set(burst.map(x => x.data.job && x.data.job.id)).size === 1 && burst.every(x => x.status === 202), burst.map(x => x.status));
+  await waitJob(mike, burst[0].data.job.id);
+  delete process.env.SLOW_MS;
   r = await call('POST', '/coach/jobs', { kind: 'review', log: 'FitPitt log fail529 ...' }, mike);
   job = await waitJob(mike, r.data.job.id, 60000);
   ok('an overloaded API is retried and the review arrives', job.status === 'done' && job.attempts === 2 && /Good week/.test(job.output.text), job);
@@ -145,6 +165,8 @@ try {
   r = await call('PUT', '/admin/settings', { ceiling_usd: 0.01 }, gabe);
   r = await call('POST', '/coach/jobs', { kind: 'ask', question: 'More?' }, gabe);
   ok('the global ceiling stops everyone, admin included', r.status === 402 && r.data.code === 'ceiling');
+  r = await call('PUT', '/admin/settings', { tasks: { ask: { model: 'claude-mystery-9' } } }, gabe);
+  ok('a task model with no price is refused', r.status === 400 && /No price/.test(r.data.error), r.data);
   r = await call('PUT', '/admin/settings', { ceiling_usd: 150, flag_usd: 5, tasks: { ask: { effort: 'low', model: 'claude-opus-5-5' } } }, gabe);
   ok('task model and effort can be changed', r.data.settings.tasks.ask.model === 'claude-opus-5-5' && r.data.settings.tasks.ask.effort === 'low' && r.data.settings.tasks.plan.model === 'claude-fable-5-1');
   r = await call('PUT', '/admin/settings', { stop_usd: -1 }, gabe);
@@ -166,6 +188,8 @@ try {
   r = await call('PATCH', '/admin/people/' + mikeId, { disabled: false }, gabe);
   r = await call('POST', '/admin/people/' + mikeId + '/invite', undefined, gabe);
   ok('a fresh invite for a reopened account', r.status === 200 && r.data.invite.code);
+  const joins = await Promise.all([1, 2, 3, 4, 5, 6].map(() => call('POST', '/join', { code: r.data.invite.code })));
+  ok('six phones at once on a 3-use code: exactly three get in', joins.filter(x => x.status === 200).length === 3, joins.map(x => x.status));
   r = await call('PATCH', '/admin/people/' + r.data.invite.code, { disabled: true }, gabe);
   ok('unknown person: 404', r.status === 404);
   const me = await call('GET', '/me', undefined, gabe);

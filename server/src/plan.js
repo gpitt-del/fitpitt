@@ -89,10 +89,10 @@ export async function encode(plan) {
 const exerciseSchema = {
   type: 'object',
   properties: {
-    name: { type: 'array', items: { type: 'string' }, minItems: 1, maxItems: 3, description: 'One name, or up to three: one per rotation (blocks 1/4/7, 2/5, 3/6). Prefer names from the catalogue.' },
+    name: { type: 'array', items: { type: 'string' }, description: 'One to three names: one per rotation (blocks 1/4/7, 2/5, 3/6). Prefer names from the catalogue, spelled exactly.' },
     g: { type: 'string', enum: GROUPS },
-    sets: { type: 'integer', minimum: 1, maximum: 8 },
-    reps: { type: 'array', items: { type: 'integer' }, minItems: 2, maxItems: 2, description: '[low, high]. Seconds for a hold.' },
+    sets: { type: 'integer', description: '1 to 8.' },
+    reps: { type: 'array', items: { type: 'integer' }, description: 'Exactly two numbers, [low, high], low at most high, up to 100. Seconds for a hold, up to 600.' },
     rest: { type: 'string', enum: ['long', 'short'], description: 'long = 2 to 3 minutes (compound lifts), short = 60 to 90 seconds.' },
     cue: { type: 'string', description: 'One coaching line, up to 160 characters, or an empty string.' },
     drop: { type: 'boolean' }, partials: { type: 'boolean' }, bw: { type: 'boolean' }, hold: { type: 'boolean' },
@@ -110,19 +110,19 @@ export const PLAN_SCHEMA = {
     made: { type: 'string', description: 'Today, YYYY-MM-DD.' },
     goal: { type: 'string', description: 'One line, up to 120 characters.' },
     line: { type: 'string', description: 'One-line summary, up to 140 characters.' },
-    perWeek: { type: 'integer', minimum: 1, maximum: 7 },
+    perWeek: { type: 'integer', description: 'Sessions a week, 1 to 7.' },
     measure: { type: 'string', enum: ['body', 'tests'] },
     effort: { type: 'string', description: 'How hard to push, up to 300 characters.' },
     deload: { type: 'string', description: 'Deload-week text, up to 300 characters, or an empty string for the default.' },
-    rules: { type: 'array', items: { type: 'string' }, maxItems: 8, description: 'Up to 8 short rules with **bold** leads.' },
+    rules: { type: 'array', items: { type: 'string' }, description: 'Up to 8 short rules with **bold** leads.' },
     days: {
-      type: 'array', minItems: 1, maxItems: 6,
+      type: 'array', description: '1 to 6 days, each with 1 to 14 exercises.',
       items: {
         type: 'object',
         properties: {
           name: { type: 'string', description: 'Up to 30 characters.' },
           short: { type: 'string', description: 'Up to 18 characters, shown under the day letter.' },
-          ex: { type: 'array', items: exerciseSchema, minItems: 1, maxItems: 14 },
+          ex: { type: 'array', items: exerciseSchema },
         },
         required: ['name', 'short', 'ex'], additionalProperties: false,
       },

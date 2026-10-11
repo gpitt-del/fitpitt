@@ -74,14 +74,19 @@ export function userMessageFor(kind, input, person) {
 
 export const TOOLS = [{ name: 'submit_plan', description: 'Submit the finished FitPitt plan. Call it exactly once, with every field filled.', strict: true, input_schema: PLAN_SCHEMA }];
 
+const CALL_LIMIT = 9.5 * 60 * 1000; // under the API's ten-minute limit for a non-streaming call
+
 /** One call to the Messages API. Returns { message, usage, text, toolInput, stop }. Throws on network or API errors. */
-export async function callClaude(env, body) {
+export async function callClaude(env, body, msLeft) {
   const base = (env.ANTHROPIC_BASE_URL || 'https://api.anthropic.com').replace(/\/$/, '');
-  const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), 13 * 60 * 1000);
+  const budget = Math.min(CALL_LIMIT, msLeft == null ? CALL_LIMIT : msLeft);
+  if (budget < 30000) throw Object.assign(new Error('Out of time for this call.'), { retryable: false });
+  const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), budget);
   let res;
   try {
     res = await fetch(base + '/v1/messages', { method: 'POST', signal: ctl.signal, headers: { 'content-type': 'application/json', 'x-api-key': env.ANTHROPIC_API_KEY || '', 'anthropic-version': API_VERSION }, body: JSON.stringify(body) });
-  } finally { clearTimeout(timer); }
+  } catch (e) { throw Object.assign(new Error(e && e.name === 'AbortError' ? 'The coach took too long to answer.' : 'Could not reach the Claude API.'), { retryable: !(e && e.name === 'AbortError') }); }
+  finally { clearTimeout(timer); }
   const text = await res.text();
   let data = null; try { data = JSON.parse(text); } catch (e) { /* not JSON */ }
   if (!res.ok) { const e = new Error((data && data.error && data.error.message) || ('Claude API ' + res.status)); e.status = res.status; e.retryable = res.status === 429 || res.status === 529 || res.status >= 500; throw e; }
@@ -91,32 +96,43 @@ export async function callClaude(env, body) {
   return out;
 }
 
-/** Runs one job end to end. Returns { output, usage[], model, effort } or throws { message, retryable }. */
-export async function runJob(env, job, person, settings) {
+/** Runs one job end to end. Returns { output, usages, model, effort }; throws { message, retryable, usages }.
+ *  memo.get(n)/memo.set(n, reply) keep each paid-for reply, so a run that is retried does not pay for it again.
+ *  deadline is a time in ms; the calls share what is left of it. */
+export async function runJob(env, job, person, settings, memo, deadline) {
   const task = settings.tasks[job.kind] || settings.tasks.ask, input = JSON.parse(job.input || '{}');
-  const usages = [];
+  const usages = [], left = () => (deadline || (Date.now() + 14 * 60000)) - Date.now();
   const base = { model: task.model, max_tokens: task.max_tokens, output_config: { effort: task.effort }, system: systemFor(job.kind) };
   const messages = [{ role: 'user', content: userMessageFor(job.kind, input, person) }];
-  if (job.kind !== 'plan') {
-    const r = await callClaude(env, Object.assign({}, base, { messages }));
+  const fail = msg => Object.assign(new Error(msg), { retryable: false, usages });
+  const ask = async (n, body) => {
+    const kept = memo ? await memo.get(n) : null;
+    if (kept) return kept;
+    let r;
+    try { r = await callClaude(env, body, left()); } catch (e) { e.usages = usages; throw e; }
     usages.push(r.usage);
-    if (!r.text) throw Object.assign(new Error('The coach gave no answer.'), { retryable: false });
-    return { output: { text: r.text }, usages, model: task.model, effort: task.effort };
-  }
-  // A plan: ask for the tool call, check the plan, and give the model one chance to fix problems.
-  let r = await callClaude(env, Object.assign({}, base, { messages, tools: TOOLS, tool_choice: { type: 'auto' } }));
-  usages.push(r.usage);
-  for (let attempt = 0; attempt < 2; attempt++) {
-    if (!r.toolInput) throw Object.assign(new Error('The coach did not submit a plan.' + (r.text ? ' It said: ' + r.text.slice(0, 300) : '')), { retryable: false });
-    const c = check(tidy(r.toolInput));
-    if (c.plan) return { output: { plan: c.plan, code: await encode(c.plan), notes: c.notes, text: r.text }, usages, model: task.model, effort: task.effort };
-    if (attempt === 1) throw Object.assign(new Error('The plan had problems the coach could not fix: ' + c.errs.slice(0, 4).join(' ')), { retryable: false });
-    const toolUse = r.message.content.find(x => x.type === 'tool_use');
-    const fix = [...messages, { role: 'assistant', content: r.message.content }, { role: 'user', content: [{ type: 'tool_result', tool_use_id: toolUse.id, content: 'The plan was rejected: ' + c.errs.join(' ') + ' Fix these and call submit_plan again with the whole plan.' }] }];
-    r = await callClaude(env, Object.assign({}, base, { messages: fix, tools: TOOLS, tool_choice: { type: 'auto' } }));
-    usages.push(r.usage);
-  }
-  throw Object.assign(new Error('The coach could not finish the plan.'), { retryable: false });
+    if (memo) await memo.set(n, r);
+    return r;
+  };
+  try {
+    if (job.kind !== 'plan') {
+      const r = await ask(0, Object.assign({}, base, { messages }));
+      if (!r.text) throw fail('The coach gave no answer.');
+      return { output: { text: r.text }, usages, model: task.model, effort: task.effort };
+    }
+    // A plan: ask for the tool call, check the plan, and give the model one chance to fix problems.
+    let r = await ask(0, Object.assign({}, base, { messages, tools: TOOLS, tool_choice: { type: 'auto' } }));
+    for (let attempt = 0; attempt < 2; attempt++) {
+      if (!r.toolInput) throw fail('The coach did not submit a plan.' + (r.text ? ' It said: ' + r.text.slice(0, 300) : ''));
+      const c = check(tidy(r.toolInput));
+      if (c.plan) return { output: { plan: c.plan, code: await encode(c.plan), notes: c.notes, text: r.text }, usages, model: task.model, effort: task.effort };
+      if (attempt === 1) throw fail('The plan had problems the coach could not fix: ' + c.errs.slice(0, 4).join(' '));
+      const toolUse = r.message.content.find(x => x.type === 'tool_use');
+      const fix = [...messages, { role: 'assistant', content: r.message.content }, { role: 'user', content: [{ type: 'tool_result', tool_use_id: toolUse.id, content: 'The plan was rejected: ' + c.errs.join(' ') + ' Fix these and call submit_plan again with the whole plan.' }] }];
+      r = await ask(1, Object.assign({}, base, { messages: fix, tools: TOOLS, tool_choice: { type: 'auto' } }));
+    }
+    throw fail('The coach could not finish the plan.');
+  } catch (e) { if (!e.usages) e.usages = usages; throw e; }
 }
 
 export function sumUsage(usages) {

@@ -41,24 +41,36 @@
   }
   function signOut(tell) {
     if (acct && tell) call('POST', '/signout').catch(() => { /* the token is dropped either way */ });
-    acct = null; saveAcct(); Cloud.db = null; Cloud.uid = null; Cloud.setStatus('local');
-    try { localStorage.removeItem(SYNC_KEY); localStorage.removeItem(JOB_KEY); } catch (e) { /* ignore */ }
+    acct = null; saveAcct(); Cloud.db = null; Cloud.uid = null; Cloud.q.clear(); clearTimeout(Cloud.pumpT); clearTimeout(Cloud.retryT); Cloud.setStatus('local');
+    // The sync bookkeeping stays, with the person it belongs to, so a different person's code cannot absorb this log.
+    try { localStorage.removeItem(JOB_KEY); } catch (e) { /* ignore */ }
     requestRender();
   }
+  const hasLog = () => liveSessions().length > 0 || liveScans().length > 0 || !!F.read();
+  // Signing in. A phone that holds someone else's log refuses a different person's code until the log is erased.
   async function join(code) {
+    if (acct) throw new ApiError(400, { error: 'This phone is signed in as ' + acct.person.name + '. Sign out in Settings first.' });
     const label = /iPhone|iPad/.test(navigator.userAgent) ? (navigator.standalone ? 'iPhone app' : 'iPhone Safari') : /Android/.test(navigator.userAgent) ? 'Android' : 'browser';
+    const who = await call('POST', '/join', { code, check: true }, { noAuth: true });
+    if (state.person && state.person !== who.person.id && hasLog()) throw new ApiError(400, { error: 'This phone holds another person\'s log. To sign in as ' + who.person.name + ', first erase everything in Settings (the other log is safe in its own account).' });
     const r = await call('POST', '/join', { code, device: label }, { noAuth: true });
-    acct = { token: r.token, person: r.person, api }; saveAcct();
-    try { localStorage.removeItem(SYNC_KEY); } catch (e) { /* ignore */ }
+    startAccount(r);
     await Cloud.init();
     closeSheet(); render();
     toast('Signed in as ' + r.person.name + '. Your log now saves to your account.');
   }
+  function startAccount(r) {
+    acct = { token: r.token, person: r.person, api }; saveAcct();
+    if (state.person !== r.person.id) state = { since: 0, pushed: 0, person: r.person.id }; // a new person: pull everything; push what this phone holds
+    saveState();
+  }
 
   /* ---------- sync: the base app's Cloud object, pointed at the server ---------- */
+  const store0 = (plan, code, at) => { try { localStorage.setItem(F.KEY, JSON.stringify({ plan, code: code || '', at: at || Date.now() })); return true; } catch (e) { return false; } };
+  const fforget = F.forget;
   // Keys the base app uses: 'meta', 'active', 'sessions/<id>', 'scans/<id>'. This file adds 'plan/current' and 'intake/current'.
   const KIND = { meta: 'meta', active: 'active', sessions: 'session', scans: 'scan', plan: 'plan', intake: 'intake' };
-  let state = { since: 0, pushed: 0 };
+  let state = { since: 0, pushed: 0, person: null };
   try { state = Object.assign(state, JSON.parse(localStorage.getItem(SYNC_KEY) || '{}')); } catch (e) { /* fresh */ }
   const saveState = () => { try { localStorage.setItem(SYNC_KEY, JSON.stringify(state)); } catch (e) { /* ignore */ } };
   function docOf(key, data) {
@@ -86,16 +98,21 @@
   Cloud.sync = async function (opts) {
     if (!this.db || this.syncing) { if (this.db && this.q.size) this.pump(); return; }
     this.syncing = true; this.setStatus('saving');
-    const sent = [];
     try {
-      const docs = [];
-      for (const [key, data] of this.q.entries()) { const d = docOf(key, data); if (d) { docs.push(d); sent.push([key, data]); } }
-      const r = await call('POST', '/sync', { since: state.since || 0, docs }, opts);
-      sent.forEach(([key, data]) => { if (this.q.get(key) === data) this.q.delete(key); }); // not anything queued meanwhile
-      let maxU = state.pushed || 0; r.acks.forEach(a => { if (a.u > maxU) maxU = a.u; });
-      state.pushed = maxU;
-      const changed = apply(r.docs);
-      state.since = r.now; saveState();
+      let changed = false, rounds = 0;
+      do { // 200 docs a round, and as many rounds as it takes; a round with nothing to push still pulls
+        const docs = [], sent = [];
+        for (const [key, data] of this.q.entries()) { const d = docOf(key, data); if (d) { docs.push(d); sent.push([key, d, data]); } if (docs.length >= 200) break; }
+        const r = await call('POST', '/sync', { since: state.since || 0, docs }, opts);
+        const acked = new Set((r.acks || []).map(a => a.kind + '/' + a.id + '/' + a.u));
+        let maxU = state.pushed || 0;
+        sent.forEach(([key, d, data]) => { if (acked.has(d.kind + '/' + d.id + '/' + d.u)) { if (this.q.get(key) === data) this.q.delete(key); if (d.u > maxU) maxU = d.u; } }); // only what the server took, and not anything queued meanwhile
+        state.pushed = Math.min(maxU, Date.now()); // a stamp from a phone with a fast clock must not hide this phone's later changes
+        if (apply(r.docs)) changed = true;
+        state.since = r.cursor != null ? r.cursor : state.since; saveState();
+        if (!r.more && !this.q.size) break;
+        rounds++;
+      } while (rounds < 50);
       this.lastSync = Date.now();
       this.setStatus(this.q.size ? 'saving' : 'saved');
       if (changed) { sortAll(); saveLocal(); requestRender(); }
@@ -112,7 +129,7 @@
     const planDoc = (docs || []).filter(d => d.kind === 'plan').pop();
     if (planDoc) {
       const cur = F.read();
-      if (planDoc.deleted) { if (cur && (cur.at || 0) < planDoc.u) { F.forget(); if (S.meta.program === 'mine') S.meta.program = null; changed = true; } }
+      if (planDoc.deleted) { if (cur && (cur.at || 0) < planDoc.u) { fforget(); if (S.meta.program === 'mine') S.meta.program = null; changed = true; } }
       else if (planDoc.body && planDoc.body.plan && (!cur || (cur.at || 0) < planDoc.u)) {
         const c = F.check(planDoc.body.plan);
         if (c.plan) { store0(c.plan, planDoc.body.code || '', planDoc.u); F.register(c.plan); changed = true; }
@@ -132,11 +149,9 @@
     return changed;
   }
   // The plan on this phone travels too.
-  const store0 = (plan, code, at) => { try { localStorage.setItem(F.KEY, JSON.stringify({ plan, code: code || '', at: at || Date.now() })); return true; } catch (e) { return false; } };
   const fstore = F.store;
   // "Use this plan" reloads the page right after storing, so the plan is sent at once, with keepalive to outlive the reload.
   F.store = function (plan, code) { const ok = fstore(plan, code); if (ok && Cloud.db) { const at = (F.read() || {}).at || Date.now(); Cloud.q.set('plan/current', { plan, code: code || '', u: at }); Cloud.flush().catch(() => { /* it goes on the next start */ }); } return ok; };
-  const fforget = F.forget;
   F.forget = function () { fforget(); Cloud.put('plan/current', null); };
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkJob(); });
   window.addEventListener('pagehide', () => { if (Cloud.db && Cloud.q.size) Cloud.flush(); });
@@ -184,7 +199,15 @@
   const lastOf = kind => { try { const l = JSON.parse(localStorage.getItem(LOG_KEY) || '[]').filter(x => x.kind === kind); return l[l.length - 1] || null; } catch (e) { return null; } };
   const currentPlan = () => { const p = F.read(); return p && S.meta.program === 'mine' ? p.plan : null; };
   const logText = () => { try { return window.FP_COACH ? window.FP_COACH.summary() : ''; } catch (e) { return ''; } };
-  const busy = e => { if (e && e.status === 402) { openSheet('<h2>Budget used up</h2><p>' + esc(e.message) + '</p><div class="frm" style="margin-top:16px"><button class="btn quiet wide" data-act="closeSheet">Close</button></div>'); return; } toast(e && e.message ? e.message : 'Could not reach the coach.'); };
+  const busy = e => { if (e && (e.status === 402 || e.status === 409)) { openSheet('<h2>' + (e.status === 402 ? 'Budget used up' : 'The coach is busy') + '</h2><p>' + esc(e.message) + '</p><div class="frm" style="margin-top:16px"><button class="btn quiet wide" data-act="closeSheet">Close</button></div>'); return; } toast(e && e.message ? e.message : 'Could not reach the coach.'); };
+  // The newest plan the coach built, for a preview that was closed or a build that finished mid-workout.
+  ACT.fpLastPlan = async () => {
+    try {
+      const r = await call('GET', '/coach/jobs?limit=20'), j = (r.jobs || []).find(x => x.kind === 'plan' && x.status === 'done' && x.output && x.output.plan);
+      if (!j) { toast('The coach has not built a plan for you yet.'); return; }
+      UI.previewPlan(j.output.plan, j.output.code, j.output.notes);
+    } catch (e) { busy(e); }
+  };
 
   // Build my plan: the intake sheet's button, when signed in.
   const send0 = ACT.fpSendIntake;
@@ -231,9 +254,10 @@
   ACT.fpAdminJoinSend = async () => {
     const key = ($('#fp-setup') ? $('#fp-setup').value : '').trim(); if (!key) return;
     try {
+      if (acct) throw new ApiError(400, { error: 'Sign out first.' });
       const r = await call('POST', '/setup', { key, name: ADMIN, device: 'admin phone' }, { noAuth: true });
-      acct = { token: r.token, person: r.person, api }; saveAcct();
-      try { localStorage.removeItem(SYNC_KEY); } catch (e) { /* ignore */ }
+      if (state.person && state.person !== r.person.id && hasLog()) { await call('POST', '/signout', undefined, { }).catch(() => {}); throw new ApiError(400, { error: 'This phone holds another person\'s log. Erase everything in Settings first.' }); }
+      startAccount(r);
       await Cloud.init(); closeSheet(); render(); toast('Signed in as ' + r.person.name + ', admin.');
     } catch (e) { const el = $('#fp-setup-err'); if (el) el.textContent = e.message; }
   };
@@ -251,7 +275,7 @@
     const el = document.createElement('div'); el.className = 'setting'; el.id = 'fp-acct';
     el.innerHTML = signedIn()
       ? '<span class="s-l">Your account</span><p>Signed in as <b>' + esc(acct.person.name) + '</b>' + (isAdmin() ? ' (admin)' : '') + '. Your log saves to your account, so another phone you sign in on shows the same log. <span id="fp-sync">' + esc(STATUS[Cloud.status]) + '</span></p>' +
-        '<div class="stack" style="margin-top:10px">' + (isAdmin() ? '<button class="btn quiet wide" data-act="adOpen">FitPitt admin: people, invites, costs</button>' : '') + '<button class="btn quiet wide" data-act="fpSignOut">Sign out on this phone</button></div>'
+        '<div class="stack" style="margin-top:10px">' + (isAdmin() ? '<button class="btn quiet wide" data-act="adOpen">FitPitt admin: people, invites, costs</button>' : '') + '<button class="btn quiet wide" data-act="fpLastPlan">Open the last plan the coach built</button><button class="btn quiet wide" data-act="fpSignOut">Sign out on this phone</button></div>'
       : '<span class="s-l">Your account</span><p>With an invite from ' + ADMIN + ', the coach builds your plan, reviews your weeks and answers questions, and your log is saved to your account.</p><div class="stack" style="margin-top:10px"><button class="btn quiet wide" data-act="fpJoin">I have an invite code</button></div>';
     anchor.after(el);
     // The base app's "Your data" text assumed a different kind of account.
@@ -367,6 +391,7 @@
   function fromLink() {
     const m = location.hash.match(/^#join=([A-Za-z0-9-]{8,9})$/); if (!m) return;
     history.replaceState(null, '', location.pathname + location.search);
+    if (acct) { toast('This phone is already signed in as ' + acct.person.name + '. Sign out in Settings to use a new invite.'); return; }
     if (navigator.standalone === false && /iPhone|iPad/.test(navigator.userAgent)) {
       openSheet('<h2>Your FitPitt invite</h2><p>Your code is <span class="fp-code-big">' + esc(m[1].toUpperCase()) + '</span>.</p><p style="margin-top:10px">On an iPhone, FitPitt works best from the Home Screen: tap Share, then <b>Add to Home Screen</b>, open it from there and tap <b>I have an invite code</b>. Or sign in right here in Safari.</p>' +
         '<div class="frm" style="margin-top:16px"><button class="btn primary" data-act="fpJoinHere" data-code="' + esc(m[1]) + '">Sign in here in Safari</button><button class="btn link" data-act="closeSheet">Close</button></div>');

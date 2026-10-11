@@ -73,6 +73,7 @@ async function setup(req, env) {
   const t = await newDevice(env, admin.id, str(b.device, 60) || 'setup');
   return json({ token: t, person: pub(admin) });
 }
+// With {check: true} it only says who the code is for, so the app can refuse to mix two people's logs before a use is spent.
 async function join(req, env) {
   const b = await readJson(req), code = normCode(b.code);
   if (code.length !== 9) throw new HttpError(400, 'The code is 8 letters and numbers, like ABCD-EFGH.');
@@ -82,7 +83,9 @@ async function join(req, env) {
   if (inv.uses >= inv.max_uses) throw new HttpError(410, 'That code has been used up. Ask for a new one.');
   const person = await env.DB.prepare('SELECT * FROM people WHERE id = ?').bind(inv.person_id).first();
   if (!person || person.disabled) throw new HttpError(403, 'This account is closed.');
-  await env.DB.prepare('UPDATE invites SET uses = uses + 1 WHERE code_hash = ?').bind(h).run();
+  if (b.check) return json({ person: pub(person) });
+  const r = await env.DB.prepare('UPDATE invites SET uses = uses + 1 WHERE code_hash = ? AND uses < max_uses AND expires > ?').bind(h, now()).run();
+  if (!r.meta || !r.meta.changes) throw new HttpError(410, 'That code has been used up. Ask for a new one.');
   const t = await newDevice(env, person.id, str(b.device, 60) || 'phone');
   return json({ token: t, person: pub(person) });
 }
@@ -113,28 +116,33 @@ async function whoami(env, me) {
 
 /* ================= sync ================= */
 // The phone sends what changed since its last sync and gets back everything newer than it has. The newer stamp wins.
+// The pull cursor is the server's own arrival order (seq), never the phones' clocks: a workout logged offline and pushed
+// later arrives with an old stamp but a new seq, so the other phone still gets it. The stamp (u) only settles conflicts.
 async function sync(req, env, me) {
-  const b = await readJson(req, 4_000_000), since = Math.max(0, +b.since || 0), docs = Array.isArray(b.docs) ? b.docs.slice(0, 500) : [];
+  const b = await readJson(req, 1_500_000), since = Math.max(0, +b.since || 0), docs = Array.isArray(b.docs) ? b.docs.slice(0, 200) : [];
   const stmts = [], acks = [];
   for (const d of docs) {
     if (!d || !KINDS.has(d.kind) || typeof d.id !== 'string' || !/^[A-Za-z0-9_.-]{1,64}$/.test(d.id)) continue;
     const u = Math.round(+d.u || 0); if (!u) continue;
     const body = d.deleted ? '{}' : JSON.stringify(d.body == null ? {} : d.body);
     if (body.length > 400_000) continue;
-    stmts.push(env.DB.prepare('INSERT INTO docs (person_id, kind, id, u, deleted, body) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(person_id, kind, id) DO UPDATE SET u = excluded.u, deleted = excluded.deleted, body = excluded.body WHERE excluded.u > docs.u')
+    stmts.push(env.DB.prepare('INSERT INTO docs (person_id, kind, id, u, seq, deleted, body) VALUES (?, ?, ?, ?, (SELECT COALESCE(MAX(seq), 0) + 1 FROM docs), ?, ?) ON CONFLICT(person_id, kind, id) DO UPDATE SET u = excluded.u, seq = (SELECT COALESCE(MAX(seq), 0) + 1 FROM docs), deleted = excluded.deleted, body = excluded.body WHERE excluded.u > docs.u')
       .bind(me.id, d.kind, d.id, u, d.deleted ? 1 : 0, body));
     acks.push({ kind: d.kind, id: d.id, u });
   }
   if (stmts.length) await env.DB.batch(stmts);
-  const rows = await env.DB.prepare('SELECT kind, id, u, deleted, body FROM docs WHERE person_id = ? AND u > ? ORDER BY u LIMIT 2000').bind(me.id, since).all();
-  const out = (rows.results || []).map(r => ({ kind: r.kind, id: r.id, u: r.u, deleted: !!r.deleted, body: r.deleted ? null : safeParse(r.body) }));
-  return json({ now: now(), docs: out, acks, more: out.length === 2000 });
+  const rows = await env.DB.prepare('SELECT kind, id, u, seq, deleted, body FROM docs WHERE person_id = ? AND seq > ? ORDER BY seq LIMIT 300').bind(me.id, since).all();
+  const list = rows.results || [], cursor = list.length ? list[list.length - 1].seq : since;
+  // Bodies are spliced in as stored, not parsed and printed again: the free plan allows 10 ms of CPU per request.
+  const parts = list.map(r => '{"kind":' + JSON.stringify(r.kind) + ',"id":' + JSON.stringify(r.id) + ',"u":' + r.u + ',"deleted":' + (r.deleted ? 'true' : 'false') + ',"body":' + (r.deleted ? 'null' : r.body) + '}');
+  return new Response('{"now":' + now() + ',"cursor":' + cursor + ',"more":' + (list.length === 300) + ',"acks":' + JSON.stringify(acks) + ',"docs":[' + parts.join(',') + ']}', { headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' } });
 }
 const safeParse = s => { try { return JSON.parse(s); } catch (e) { return null; } };
 
 /* ================= coach jobs ================= */
-async function createJob(req, env, me) {
-  const b = await readJson(req, 300_000), kind = b.kind;
+async function createJob(req, env, me) { return createJobWith(await readJson(req, 300_000), env, me); }
+async function createJobWith(b, env, me) {
+  const kind = b.kind;
   if (!JOB_KINDS.has(kind)) throw new HttpError(400, 'Job kind must be plan, review or ask.');
   if (!env.ANTHROPIC_API_KEY) throw new HttpError(503, 'The coach is not set up yet (no API key on the server).');
   const s = await getSettings(env);
@@ -142,8 +150,6 @@ async function createJob(req, env, me) {
   if (stop != null && spent >= stop) throw new HttpError(402, 'Your coach budget for this month is used up ($' + round(spent) + ' of $' + stop + '). Ask Gabe to raise it.', { code: 'cap' });
   const all = await monthCost(env, null);
   if (s.ceiling_usd && all >= s.ceiling_usd) throw new HttpError(402, "The coach's monthly budget for everyone is used up. Ask Gabe.", { code: 'ceiling' });
-  const open = await env.DB.prepare("SELECT id, created FROM jobs WHERE person_id = ? AND status IN ('queued', 'running') ORDER BY created DESC LIMIT 1").bind(me.id).first();
-  if (open && now() - open.created < 20 * 60 * 1000) return json({ job: await jobRow(env, open.id), reused: true }, 202);
   const input = {};
   if (kind === 'plan') { input.intake = str(b.intake, 4000); if (!input.intake) throw new HttpError(400, 'Send the intake answers.'); input.note = str(b.note, 1000); }
   if (kind === 'review') { input.log = String(b.log || '').slice(0, 14000); if (!input.log.trim()) throw new HttpError(400, 'Send the log to review.'); }
@@ -151,11 +157,24 @@ async function createJob(req, env, me) {
   if (kind !== 'ask' && b.log && kind === 'plan') input.log = String(b.log).slice(0, 12000);
   if (b.currentPlan && typeof b.currentPlan === 'object') input.currentPlan = b.currentPlan;
   const jid = id('j');
-  await env.DB.prepare('INSERT INTO jobs (id, person_id, kind, status, created, input) VALUES (?, ?, ?, ?, ?, ?)').bind(jid, me.id, kind, 'queued', now(), JSON.stringify(input)).run();
-  const stub = env.JOBS.get(env.JOBS.idFromName(jid));
-  await stub.fetch('https://job/start', { method: 'POST', body: JSON.stringify({ jobId: jid }) });
+  try { await env.DB.prepare('INSERT INTO jobs (id, person_id, kind, status, created, input) VALUES (?, ?, ?, ?, ?, ?)').bind(jid, me.id, kind, 'queued', now(), JSON.stringify(input)).run(); }
+  catch (e) {
+    if (!/UNIQUE/i.test(String(e && e.message))) throw e;
+    const open = await env.DB.prepare("SELECT * FROM jobs WHERE person_id = ? AND status IN ('queued', 'running') ORDER BY created DESC LIMIT 1").bind(me.id).first();
+    if (open && now() - open.created > STALE_MS) { await env.DB.prepare('UPDATE jobs SET status = ?, finished = ?, error = ? WHERE id = ?').bind('failed', now(), 'Gave up: it took too long.', open.id).run(); return createJobWith(b, env, me); }
+    if (open && open.kind === kind) return json({ job: view(open), reused: true }, 202);
+    throw new HttpError(409, 'The coach is still working on your ' + (open ? { plan: 'plan', review: 'review', ask: 'last question' }[open.kind] : 'last request') + '. Wait for that to finish first.', { code: 'busy' });
+  }
+  try {
+    const stub = env.JOBS.get(env.JOBS.idFromName(jid));
+    await stub.fetch('https://job/start', { method: 'POST', body: JSON.stringify({ jobId: jid }) });
+  } catch (e) {
+    await env.DB.prepare('UPDATE jobs SET status = ?, finished = ?, error = ? WHERE id = ?').bind('failed', now(), 'Could not start the coach. Try again.', jid).run();
+    throw new HttpError(503, 'Could not start the coach. Try again in a moment.');
+  }
   return json({ job: await jobRow(env, jid) }, 202);
 }
+const STALE_MS = 20 * 60 * 1000; // a job still open after this is counted as failed
 async function getJob(env, me, jid) {
   const j = await jobRow(env, jid);
   if (!j || j.person_id !== me.id) throw new HttpError(404, 'No such job.');
@@ -168,6 +187,7 @@ async function listJobs(env, me, url) {
 }
 async function jobRow(env, jid) { const r = await env.DB.prepare('SELECT * FROM jobs WHERE id = ?').bind(jid).first(); return r ? view(r) : null; }
 function view(r) {
+  if ((r.status === 'queued' || r.status === 'running') && now() - r.created > STALE_MS) r = Object.assign({}, r, { status: 'failed', error: 'Gave up: it took too long.' });
   return { id: r.id, person_id: r.person_id, kind: r.kind, status: r.status, created: r.created, started: r.started, finished: r.finished, attempts: r.attempts, model: r.model, effort: r.effort,
     output: r.status === 'done' ? safeParse(r.output) : null, error: r.status === 'failed' ? r.error : (r.status === 'queued' && r.error ? r.error : null), cost_usd: round(r.cost_usd), tokens: { in: r.in_tokens, out: r.out_tokens, cache_read: r.cache_read, cache_write: r.cache_write } };
 }

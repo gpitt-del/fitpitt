@@ -247,11 +247,23 @@ async def main():
         st, r = api('GET', '/admin/settings', token=gabe_token)
         ok('settings saved from the admin screen', r['settings']['flag_usd'] == 5 and r['settings']['tasks']['ask']['effort'] == 'low', r['settings'])
 
-        # ---------- 8. Sign out, and a closed account ----------
+        # ---------- 8. Sign out, another person's code, and a closed account ----------
+        st, r = api('POST', '/admin/people', {'name': 'Sarah'}, token=gabe_token); sarah_code = r['invite']['code']
+        await mike2.goto(SITE + '#join=' + sarah_code); await mike2.wait_for_selector('#app .hero h1')
+        await mike2.wait_for_function("document.querySelector('#toast') && /already signed in as Mike/.test(document.querySelector('#toast').textContent)")
+        ok("a link for someone else on a signed-in phone does nothing", (await mike2.evaluate("JSON.parse(localStorage.getItem('fitpitt.account')).person.name")) == 'Mike')
         await mike2.click('#tabs [data-tab="settings"]'); await mike2.click('[data-act="fpSignOut"]'); await mike2.click('#sheet [data-act="fpSignOutNow"]')
         await mike2.wait_for_timeout(500)
         ok('signing out keeps the log on the phone', await mike2.evaluate("localStorage.getItem('fitpitt.account') === null && JSON.parse(localStorage.getItem('traininglog.v1')).sessions.length >= 1"))
         ok('Settings offers the invite sign-in again', 'I have an invite code' in await mike2.inner_text('#fp-acct'))
+        await mike2.click('#fp-acct [data-act="fpJoin"]'); await wait_sheet(mike2, 'Sign in with an invite')
+        await mike2.fill('#fp-join', sarah_code); await mike2.click('[data-act="fpJoinSend"]')
+        await mike2.wait_for_function("document.querySelector('#fp-join-err').textContent.length > 0")
+        ok("Sarah's code is refused while Mike's log is on the phone", "another person's log" in await mike2.inner_text('#fp-join-err') and await mike2.evaluate("localStorage.getItem('fitpitt.account') === null"))
+        st, r = api('POST', '/join', {'code': sarah_code, 'check': True})
+        st2, r2 = api('POST', '/join', {'code': sarah_code})
+        ok("Sarah's code was not spent by the refusal", st2 == 200 and r2['person']['name'] == 'Sarah')
+        await mike2.click('#sheet .sheet-body [data-act="closeSheet"]')
         st, r = api('PATCH', '/admin/people/' + acct['person']['id'], {'disabled': True}, token=gabe_token)
         await mike.evaluate('Cloud.sync()'); await mike.wait_for_timeout(1500)
         ok('a closed account signs the phone out with a message', await mike.evaluate("localStorage.getItem('fitpitt.account') === null") and 'closed' in await mike.inner_text('#toast'))
