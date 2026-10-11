@@ -81,6 +81,7 @@
       (sc.length ? '\n\nMeasurements:\n' + sc.map(x => x.date + ': ' + M().fields.filter(f => x[f[0]] != null).map(f => f[1].toLowerCase() + ' ' + trim(x[f[0]]) + ' ' + f[2]).join(', ')).join('\n') : '') +
       '\n\nApp notes:\n' + notes().map(n => '- ' + strip(n)).join('\n') + '\n\nReview this and tell me what to change.';
   }
+  window.FP_COACH = { summary, notes }; // used by the account add-on (p.js) to send the log to the coach
   ACT.coachShare = () => {
     const text = summary();
     if (navigator.share) { navigator.share({ title: 'FitPitt log', text }).catch(() => { /* closed without sharing */ }); return; }

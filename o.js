@@ -110,11 +110,16 @@
     t.parentNode.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === draft[k])));
     const box = t.closest('.fp-q'); if (box) box.classList.remove('fp-miss');
   };
-  ACT.fpSendIntake = () => {
+  // The answers, checked. Returns null (and marks what is missing) until every required question is answered.
+  function collectIntake() {
     const d = {}; Q.forEach(q => { d[q.k] = String(draft[q.k] == null ? '' : draft[q.k]).trim(); });
     const miss = Q.filter(q => q.req && !d[q.k]);
     document.querySelectorAll('.fp-q').forEach(el => el.classList.toggle('fp-miss', miss.some(q => q.k === el.dataset.q)));
-    if (miss.length) { const el = document.querySelector('.fp-q.fp-miss'); if (el) el.scrollIntoView({ block: 'center', behavior: 'smooth' }); toast(miss.length === 1 ? 'One more: ' + miss[0].label.toLowerCase() + '.' : miss.length + ' questions still need an answer. They are marked.'); return; }
+    if (miss.length) { const el = document.querySelector('.fp-q.fp-miss'); if (el) el.scrollIntoView({ block: 'center', behavior: 'smooth' }); toast(miss.length === 1 ? 'One more: ' + miss[0].label.toLowerCase() + '.' : miss.length + ' questions still need an answer. They are marked.'); return null; }
+    return d;
+  }
+  ACT.fpSendIntake = () => {
+    const d = collectIntake(); if (!d) return;
     share('FitPitt plan request', intakeText(d), 'Copy this and text it to ' + ADMIN + '.').then(how => {
       if (how === 'cancelled' || how === 'shown') return;
       openSheet('<h2>' + (how === 'copied' ? 'Copied' : 'Sent') + '</h2><p>' + (how === 'copied' ? 'Paste it into a text to ' + ADMIN + '. ' : '') + 'When ' + ADMIN + ' sends back your plan code, open FitPitt and tap <b>I have a plan code</b>. Your answers stay on this phone in case you want to change them.</p>' +
@@ -244,6 +249,8 @@
     openText(code);
   }
   window.addEventListener('hashchange', fromLink); // a link opened in a page that already shows FitPitt
+  // Used by the account add-on (p.js), which builds plans through the coach instead of a text to Gabe.
+  window.FP_UI = { openText, collectIntake, intakeText, previewPlan(plan, code, notes) { pend = { plan, code: code || '', notes: notes || [] }; previewSheet(); }, intakeSheet };
   fromLink();
   onRender();
 })();

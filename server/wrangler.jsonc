@@ -1,0 +1,17 @@
+{
+  // FitPitt API: accounts, sync and the coach. Deployed to Cloudflare Workers; the app itself stays on GitHub Pages.
+  // Secrets (set with `wrangler secret put`, never in this file): ANTHROPIC_API_KEY, ADMIN_SETUP_KEY.
+  "name": "fitpitt-api",
+  "main": "src/index.js",
+  "compatibility_date": "2026-09-01",
+  "observability": { "enabled": true },
+  "vars": {
+    // Origins allowed to call the API from a browser. The live app, plus local test servers.
+    "ALLOWED_ORIGINS": "https://gpitt-del.github.io,http://localhost,http://127.0.0.1",
+    // Where invite links point.
+    "SITE_URL": "https://gpitt-del.github.io/fitpitt/"
+  },
+  "d1_databases": [{ "binding": "DB", "database_name": "fitpitt", "database_id": "REPLACE_AFTER_wrangler_d1_create" }],
+  "durable_objects": { "bindings": [{ "name": "JOBS", "class_name": "CoachJob" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["CoachJob"] }]
+}

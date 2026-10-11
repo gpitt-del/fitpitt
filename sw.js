@@ -1,8 +1,8 @@
 // FitPitt offline support. Own files load from the network first so updates arrive, and from the cache when offline.
-const CACHE = 'fitpitt-v12';
+const CACHE = 'fitpitt-v13';
 // The photo reader's files (the ocr7 folder) are large and never change. They are fetched the first time a photo is read, then kept through app updates.
 const READER = 'fitpitt-ocr7';
-const SHELL = ['./', 'index.html', 'app.css', 'a.js', 'b.js', 'c.js', 'd.js', 'n.js', 'e.js', 'f.js', 'g.js', 'h.js', 'i.js', 'j.js', 'k.js?v=2', 'l.js', 'm.js', 'o.js', 'manifest.webmanifest', 'icon.svg'];
+const SHELL = ['./', 'index.html', 'app.css', 'a.js', 'b.js', 'c.js', 'd.js', 'n.js', 'e.js', 'f.js', 'g.js', 'h.js', 'i.js', 'j.js', 'k.js?v=2', 'l.js', 'm.js', 'o.js', 'p.js', 'manifest.webmanifest', 'icon.svg'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE && k !== READER).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
 self.addEventListener('fetch', e => {
