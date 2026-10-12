@@ -34,7 +34,7 @@
   const QUOTES = [
     ['Nothing will work unless you do.', 'Maya Angelou'],
     ['Hard choices, easy life. Easy choices, hard life.', 'Jerzy Gregorek'],
-    ['At dawn, when you have trouble getting out of bed, tell yourself: I have to go to work as a human being.', 'Marcus Aurelius'],
+    ['Confine yourself to the present.', 'Marcus Aurelius'],
     ["Practice like it's competition and compete like it's another day on the practice court.", 'Karch Kiraly'],
     ['Strength does not come from winning. Your struggles develop your strengths.', 'Arnold Schwarzenegger'],
     ['First say to yourself what you would be; and then do what you have to do.', 'Epictetus'],
