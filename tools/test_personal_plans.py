@@ -441,6 +441,20 @@ async def main():
         ok('six-day plan: streak and week notices still work', await page.locator('#app .hero h1').inner_text() == 'Lower 3')
         await ctx.close()
 
+        # ---------- 8b. Day names with no spaces stay inside their cards (Gabe, Oct 12) ----------
+        tight = copy.deepcopy(PLAN); tight['name'] = 'Tight names test'
+        for d, short in zip(tight['days'], ['Upper-Push/Shoulder', 'Lower(Quads+Glutes)', 'Pull+Arms+Core', 'Hamstrings/Glutes']):
+            d['short'] = short
+        ctx, page = await newpage(browser, dev=ANDROID, tag='tight')
+        await seed(page, meta={'v': 1, 'program': 'mine', 'startDate': monday(datetime.date.today()).isoformat(), 'paused': [], 'priority': [], 'restC': 150, 'restI': 75, 'restRp': 20, 'style': 'std', 'sound': True, 'effort': 'last', 'names': {}, 'lastBackup': 0, 'resetAt': 0, 'u': 1},
+                   extra={'fitpitt.plan': json.dumps({'plan': tight, 'code': '', 'at': 1})})
+        fit = await page.evaluate("""() => { const ds = document.querySelector('.dayswitch'); const r = ds.getBoundingClientRect();
+          const out = [...ds.children].map(b => { const q = b.getBoundingClientRect(); const t = b.querySelector('span:last-child').getBoundingClientRect(); return [q.right <= r.right + 0.5, t.right <= q.right - 2, b.scrollWidth <= b.clientWidth]; });
+          return { ok: out.every(x => x.every(Boolean)), out, page: document.documentElement.scrollWidth <= innerWidth }; }""")
+        ok('day cards with unbreakable names stay inside the screen and their borders', fit['ok'] and fit['page'], fit)
+        await shot(page, '11b-tight-day-names')
+        await ctx.close()
+
         # ---------- 9. Fixes from the review ----------
         ctx, page = await newpage(browser, tag='review')
         await page.goto(SITE); await page.wait_for_selector('#app h1')

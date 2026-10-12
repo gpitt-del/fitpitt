@@ -97,7 +97,9 @@ h3 { font: 600 21px/1.15 var(--fc); }
 .effort { margin: 14px 0 0; padding: 10px 0 10px 12px; border-left: 3px solid var(--day); font-size: 15px; }
 .effort.dl { border-left-color: var(--green); }
 .dayswitch { display: flex; gap: 8px; margin-top: 12px; }
-.dayswitch button { flex: 1; display: flex; align-items: center; gap: 8px; padding: 7px 8px; background: transparent; border: 1.5px solid var(--line); border-radius: 10px; font-size: 14px; text-align: left; line-height: 1.15; min-height: 52px; }
+.dayswitch button { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; padding: 7px 8px; background: transparent; border: 1.5px solid var(--line); border-radius: 10px; font-size: 14px; text-align: left; line-height: 1.15; min-height: 52px; }
+.dayswitch button .plate { flex: none; }
+.dayswitch button > span:last-child { min-width: 0; overflow-wrap: anywhere; hyphens: auto; }
 .dayswitch button[aria-pressed="true"] { border-color: var(--ink); background: var(--surface); }
 .notice { margin-top: 14px; padding: 12px 14px; background: var(--surface); border-radius: 10px; border: 1px solid var(--line); font-size: 15px; }
 .notice .btn { margin-top: 10px; }

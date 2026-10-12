@@ -361,7 +361,12 @@
   ACT.fpMyCode = () => { const st = F.read(); if (!st || !st.code) return; copyText('Plan code', st.code, 'Copy this code to load the plan on another phone.').then(how => { if (how === 'copied') toast('Code copied. Paste it into FitPitt on the other phone.'); }); };
   // A friend sends the log summary to Gabe, who pastes it into Claude.
   function relabel() { if (S.meta.program !== 'mine') return; const b = app.querySelector('[data-act="coachShare"]'); if (b && !b.dataset.fp) { b.dataset.fp = '1'; b.textContent = 'Send my log to ' + ADMIN + ' for a review'; } }
-  function fitDays() { const ds = app.querySelector('.dayswitch'); if (!ds) return; const n = ds.children.length; [4, 5, 6].forEach(k => ds.classList.toggle('fp-n' + k, n === k)); }
+  function fitDays() {
+    const ds = app.querySelector('.dayswitch'); if (!ds) return; const n = ds.children.length; [4, 5, 6].forEach(k => ds.classList.toggle('fp-n' + k, n === k));
+    // A day name with no spaces (Lower(Quads+Glutes), Push/Shoulders) could not wrap and pushed its card off the screen.
+    // Let it break after punctuation first; app.css breaks anywhere as a last resort.
+    ds.querySelectorAll('button > span:last-child').forEach(sp => { const t = sp.textContent; if (!t.includes('​')) sp.textContent = t.replace(/([\/+\-&,:])(?=\S)/g, '$1​').replace(/(\S)\(/g, '$1​('); });
+  }
   // Every workout opens with its warm-up (Gabe, Oct 12): the plan's own lines, or a generic one for what the day trains.
   // Open until the first set is logged, then folded; a tap on it is remembered for the rest of the workout.
   let warmOpen = null, warmId = '';
