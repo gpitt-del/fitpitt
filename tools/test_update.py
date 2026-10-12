@@ -17,7 +17,9 @@ OLD_REF = sys.argv[1] if len(sys.argv) > 1 else 'HEAD~1'
 TMP = Path(tempfile.mkdtemp(prefix='fitpitt-update-'))
 OLD = TMP / 'old'; OLD.mkdir()
 # The old release, from git. Unpacked in Python so this runs on Windows too (no tar, no symlinks).
-tarfile.open(fileobj=io.BytesIO(subprocess.run(['git', '-C', str(ROOT), 'archive', OLD_REF], capture_output=True, check=True).stdout)).extractall(OLD)
+_tar = tarfile.open(fileobj=io.BytesIO(subprocess.run(['git', '-C', str(ROOT), 'archive', OLD_REF], capture_output=True, check=True).stdout))
+try: _tar.extractall(OLD, filter='data')  # the explicit filter Python 3.12 asks for (and 3.14 requires)
+except TypeError: _tar.extractall(OLD)   # older Pythons without the filter argument
 SERVE = {'dir': str(OLD)}  # which tree the local server hands out; point() switches it, like a release
 s = socket.socket(); s.bind(('127.0.0.1', 0)); PORT = s.getsockname()[1]; s.close()
 SITE = 'http://localhost:%d/' % PORT
