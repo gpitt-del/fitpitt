@@ -39,14 +39,14 @@ FitPitt is a phone workout log (a home-screen web app) at https://gpitt-del.gith
   together in coach.js (a reply held until complete was cut off by the API's front door with a 524 after about 100 s
   on the first real plan, Oct 11). Plans come back through a strict `submit_plan` tool and pass the same checks as
   the app (server/src/plan.js = n.js). A `kid` gets youth rules on top (sport first, technique before load, supervised
-  max efforts allowed, landing and knee-injury prevention work, sessions fitted around practices).
+  max efforts allowed, landing and knee-injury prevention work, sessions fitted around practices). Jobs run in a
+  Durable Object alarm so a phone can lock mid-build; every model reply is kept so a retry never pays twice. Pain
+  means stop and get checked.
 - **Scope (Gabe, Oct 12):** the coach covers training, cardio, nutrition, recovery and sleep and answers supplement,
   hormone and medical questions as information (evidence, typical amounts, cautions, when to see a clinician), with a
   one-line "information, not medical advice" note on drugs, hormones and conditions; it never diagnoses or changes a
   prescription and never refuses with "I'm not a doctor". Kids: food, protein, hydration and sleep only; the rest is
-  for their parents. A health tip of the day rotates on Today (o.js TIPS). Jobs run in a Durable Object
-  alarm so a phone can lock mid-build; every model reply is kept so a retry never pays twice. Training only: no
-  medical, drug, supplement or peptide advice; pain means stop and get checked.
+  for their parents. A health tip of the day rotates on Today (o.js TIPS).
 - **Coach set-up (Gabe, Oct 12: accuracy over cost):** plans and weekly reviews at high effort with room to think
   (40000 and 12000 output tokens; thinking counts; 16000 was used up by thinking alone on the first real build),
   questions at medium for speed mid-workout. Model, effort and max tokens are per task in Settings → FitPitt admin;
