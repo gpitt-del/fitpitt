@@ -27,35 +27,35 @@
     '.fp-sub{font:700 20px/1.2 var(--fc);margin:22px 0 8px}.pick + .fp-sub{margin-top:26px}' +
     '.fp-fix summary{font-size:14px;color:var(--muted);cursor:pointer;margin-top:14px}' +
     '.fp-coach{padding:10px 12px;border-left:3px solid var(--day);font-size:15px;line-height:1.45}' +
-    '.brand-who{white-space:nowrap;opacity:.8;font-size:14px}' +
+    '.brand-who{opacity:.8;font-size:14px}' +
     '.fp-tip{display:block;width:100%;margin-top:12px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface);text-align:left;font-size:14px;line-height:1.4;color:var(--ink)}.fp-tip-l{display:block;font:700 12px/1.2 var(--fc);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:4px}';
   document.head.appendChild(css);
 
   /* ---------- the quote in the brand bar: one a day, tap for the next (Gabe, Oct 12: famous or fit people) ---------- */
   const QUOTES = [
-    ['Nothing will work unless you do.', 'Maya Angelou'],
-    ['Hard choices, easy life. Easy choices, hard life.', 'Jerzy Gregorek'],
-    ['Confine yourself to the present.', 'Marcus Aurelius'],
-    ["Practice like it's competition and compete like it's another day on the practice court.", 'Karch Kiraly'],
-    ['Strength does not come from winning. Your struggles develop your strengths.', 'Arnold Schwarzenegger'],
-    ['First say to yourself what you would be; and then do what you have to do.', 'Epictetus'],
-    ['Adversity, if you allow it to, will fortify you and make you the best you can be.', 'Kerri Walsh Jennings'],
-    ["Don't have $100 shoes and a 10-cent squat.", 'Louie Simmons'],
-    ["You're either getting better or getting worse. I don't think you stay the same in sports.", 'Russ Rose'],
-    ['Difficulties strengthen the mind, as labor does the body.', 'Seneca'],
-    ['The goal is to keep the goal the goal.', 'Dan John'],
-    ['The will to win is more important than the skill to win.', 'Lloy Ball'],
-    ['The mind is the limit.', 'Arnold Schwarzenegger'],
-    ['It is a shame to grow old without seeing the beauty and strength of which your body is capable.', 'Socrates'],
-    ['You cannot succeed without believing in yourself, and that belief is completely under your control.', 'Karch Kiraly'],
-    ['We are what we repeatedly do. Excellence, then, is not an act, but a habit.', 'Aristotle'],
-    ['The game teaches the game.', 'John Kessel'],
-    ["Take care of your body. It's the only place you have to live.", 'Jim Rohn'],
-    ['You have to be willing to fail, to improve.', 'Al Scates'],
-    ["Don't count the days; make the days count.", 'Muhammad Ali'],
+    ['Nothing will work unless you do.', 'Maya Angelou', 'poet and memoirist'],
+    ['Hard choices, easy life. Easy choices, hard life.', 'Jerzy Gregorek', 'world weightlifting champion'],
+    ['Confine yourself to the present.', 'Marcus Aurelius', 'Roman emperor and Stoic'],
+    ["Practice like it's competition and compete like it's another day on the practice court.", 'Karch Kiraly', 'Olympic gold indoors and on the beach'],
+    ['Strength does not come from winning. Your struggles develop your strengths.', 'Arnold Schwarzenegger', 'seven-time Mr. Olympia'],
+    ['First say to yourself what you would be; and then do what you have to do.', 'Epictetus', 'Stoic philosopher, born a slave'],
+    ['Adversity, if you allow it to, will fortify you and make you the best you can be.', 'Kerri Walsh Jennings', 'three Olympic beach volleyball golds'],
+    ["Don't have $100 shoes and a 10-cent squat.", 'Louie Simmons', 'founder of Westside Barbell'],
+    ["You're either getting better or getting worse. I don't think you stay the same in sports.", 'Russ Rose', 'Penn State coach, seven national titles'],
+    ['Difficulties strengthen the mind, as labor does the body.', 'Seneca', 'Stoic philosopher'],
+    ['The goal is to keep the goal the goal.', 'Dan John', 'strength coach and author'],
+    ['The will to win is more important than the skill to win.', 'Lloy Ball', 'USA setter, Olympic gold 2008'],
+    ['The mind is the limit.', 'Arnold Schwarzenegger', 'seven-time Mr. Olympia'],
+    ['It is a shame to grow old without seeing the beauty and strength of which your body is capable.', 'Socrates', 'Athenian philosopher'],
+    ['You cannot succeed without believing in yourself, and that belief is completely under your control.', 'Karch Kiraly', 'Olympic gold indoors and on the beach'],
+    ['We are what we repeatedly do. Excellence, then, is not an act, but a habit.', 'Aristotle', 'Greek philosopher'],
+    ['The game teaches the game.', 'John Kessel', 'USA Volleyball coaching educator'],
+    ["Take care of your body. It's the only place you have to live.", 'Jim Rohn', 'speaker on personal discipline'],
+    ['You have to be willing to fail, to improve.', 'Al Scates', 'UCLA coach, nineteen national titles'],
+    ["Don't count the days; make the days count.", 'Muhammad Ali', 'three-time heavyweight champion'],
   ];
   let quoteAt = Math.floor(Date.now() / 86400000) % QUOTES.length;
-  function showQuote() { const el = $('#brand-q'); if (!el) return; const q = QUOTES[quoteAt]; el.innerHTML = '“' + esc(q[0]) + '” <span class="brand-who">— ' + esc(q[1]) + '</span>'; }
+  function showQuote() { const el = $('#brand-q'); if (!el) return; const q = QUOTES[quoteAt]; el.innerHTML = '“' + esc(q[0]) + '” <span class="brand-who">— ' + esc(q[1]) + (q[2] ? ', ' + esc(q[2]) : '') + '</span>'; }
   ACT.fpQuote = () => { quoteAt = (quoteAt + 1) % QUOTES.length; showQuote(); };
   showQuote();
 
