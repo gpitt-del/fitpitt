@@ -3,7 +3,7 @@
     cd server && npm install        (once)
     python3 tools/test_accounts.py [screenshot folder]
 
-Starts: a static server for the app, the stand-in Claude API (node), and wrangler dev with a fresh local database.
+Starts: a static server for the app, the stand-in Claude API (node), and wrangler dev (through Node, so it runs on Windows too) with a fresh local database.
 """
 import asyncio, json, os, re, sys, subprocess, tempfile, socket, time, shutil
 from pathlib import Path
@@ -32,7 +32,7 @@ persist = tempfile.mkdtemp(prefix='fitpitt-d1-')
 procs = [
     subprocess.Popen([sys.executable, '-m', 'http.server', str(SITE_PORT), '--bind', '127.0.0.1', '--directory', str(ROOT)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL),
     subprocess.Popen(['node', str(SERVER / 'test' / 'mock-anthropic.mjs')], env=dict(os.environ, PORT=str(MOCK_PORT), SLOW_MS='3000'), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL),
-    subprocess.Popen([str(SERVER / 'node_modules' / '.bin' / 'wrangler'), 'dev', '--local', '--port', str(API_PORT), '--persist-to', persist, '--var', 'ALLOWED_ORIGINS:http://localhost,http://127.0.0.1', '--var', 'SITE_URL:' + SITE], cwd=str(SERVER), stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True),
+    subprocess.Popen(['node', str(SERVER / 'node_modules' / 'wrangler' / 'bin' / 'wrangler.js'), 'dev', '--local', '--port', str(API_PORT), '--persist-to', persist, '--var', 'ALLOWED_ORIGINS:http://localhost,http://127.0.0.1', '--var', 'SITE_URL:' + SITE], cwd=str(SERVER), stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True),
 ]
 import urllib.request
 for _ in range(80):
