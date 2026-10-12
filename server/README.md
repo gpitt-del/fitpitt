@@ -8,7 +8,7 @@ one Durable Object class that runs coach jobs after the phone has gone away. The
 - `src/index.js`: the API (routes, sign-in, sync, admin). `src/job.js`: the Durable Object that runs a coach job.
   `src/coach.js`: prompts, the Claude call, plan checking. `src/plan.js`: the plan format, the same checks as the app's `n.js`.
   `src/schema.js`: the database, created on first use. `src/settings.js`: flags, stops, models, prices.
-- `test/run.mjs`: 67 checks against a local Worker and `test/mock-anthropic.mjs`, a stand-in Claude (it streams like the real API, and `GET /__calls` shows what the coach was told).
+- `test/run.mjs`: 68 checks against a local Worker and `test/mock-anthropic.mjs`, a stand-in Claude (it streams like the real API, and `GET /__calls` shows what the coach was told).
   `tools/test_accounts.py` (repo root) runs the app and this server together in simulated phones.
 
 ## Endpoints (JSON; `Authorization: Bearer <device token>` except where noted)

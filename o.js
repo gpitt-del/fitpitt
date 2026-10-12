@@ -28,6 +28,8 @@
     '.fp-fix summary{font-size:14px;color:var(--muted);cursor:pointer;margin-top:14px}' +
     '.fp-coach{padding:10px 12px;border-left:3px solid var(--day);font-size:15px;line-height:1.45}' +
     '.brand-who{opacity:.8;font-size:14px}' +
+    '.fp-warm{margin:10px 0 14px;padding:8px 12px;border-left:3px solid var(--day);font-size:15px;line-height:1.45}.fp-warm summary{font-weight:700;cursor:pointer}.fp-warm ol{margin:6px 0 0;padding-left:20px}.fp-warm li{margin:3px 0}' +
+    '.fp-warm-pv{font-size:14px;color:var(--muted);margin:2px 0 12px}' +
     '.fp-tip{display:block;width:100%;margin-top:12px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface);text-align:left;font-size:14px;line-height:1.4;color:var(--ink)}.fp-tip-l{display:block;font:700 12px/1.2 var(--fc);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:4px}';
   document.head.appendChild(css);
 
@@ -304,7 +306,9 @@
     if (pl.goal) h += '<p style="margin-top:10px"><b>Goal:</b> ' + esc(pl.goal) + '</p>';
     if (pend.text) h += '<p class="fp-sub">From the coach</p><p class="fp-coach">' + esc(pend.text).replace(/\n+/g, '<br>') + '</p>';
     if (inIosBrowser() && pend.code) h += '<div class="notice"><b>Is FitPitt on your Home Screen?</b> Links open in Safari, which keeps a separate copy of the app. Copy the code, open FitPitt from your Home Screen and tap <b>I have a plan code</b>. Or use the plan right here in Safari.<br><button class="btn small" data-act="fpCopyCode">Copy the code</button></div>';
-    h += '<div class="menu">' + keys.map(k => '<h3>' + plate(k, 'sm') + esc(prog.days[k][0]) + '</h3><ol>' + prog.slots[k].map(s => '<li><span>' + esc(s.names[0]) + '</span><span>' + esc(target(s)) + '</span></li>').join('') + '</ol>').join('') + '</div>';
+    h += '<div class="menu">' + keys.map(k => '<h3>' + plate(k, 'sm') + esc(prog.days[k][0]) + '</h3>' +
+      (prog.warm[k] ? '<p class="fp-warm-pv"><b>Warm-up:</b> ' + prog.warm[k].map(esc).join(' · ') + '</p>' : '') +
+      '<ol>' + prog.slots[k].map(s => '<li><span>' + esc(s.names[0]) + '</span><span>' + esc(target(s)) + '</span></li>').join('') + '</ol>').join('') + '</div>';
     if (turns) h += '<p class="small muted" style="margin-top:8px">Some exercises change from block to block. The Plan tab shows each block.</p>';
     if (pl.rules) h += '<p class="fp-sub">Rules for this plan</p><ul class="rules">' + pl.rules.map(r => '<li>' + boldEsc(r) + '</li>').join('') + '</ul>';
     if (pend.notes.length) h += '<details class="fp-fix"><summary>Small fixes made while reading it (' + pend.notes.length + ')</summary><ul class="steps">' + pend.notes.map(n => '<li>' + esc(n) + '</li>').join('') + '</ul></details>';
@@ -358,7 +362,22 @@
   // A friend sends the log summary to Gabe, who pastes it into Claude.
   function relabel() { if (S.meta.program !== 'mine') return; const b = app.querySelector('[data-act="coachShare"]'); if (b && !b.dataset.fp) { b.dataset.fp = '1'; b.textContent = 'Send my log to ' + ADMIN + ' for a review'; } }
   function fitDays() { const ds = app.querySelector('.dayswitch'); if (!ds) return; const n = ds.children.length; [4, 5, 6].forEach(k => ds.classList.toggle('fp-n' + k, n === k)); }
-  const onRender = () => { settingsCard(); relabel(); fitDays(); tipCard(); };
+  // Every workout opens with its warm-up (Gabe, Oct 12): the plan's own lines, or a generic one for what the day trains.
+  // Open until the first set is logged, then folded; a tap on it is remembered for the rest of the workout.
+  let warmOpen = null, warmId = '';
+  function warmCard() {
+    if (tab !== 'today' || !S.active || $('#fp-warm')) return;
+    const eff = app.querySelector('.effort'); if (!eff) return;
+    const lines = F.warmFor(P(), S.active.day); if (!lines.length) return;
+    if (S.active.id !== warmId) { warmId = S.active.id; warmOpen = null; }
+    const started = S.active.ex.some(e => e.sets.some(s => s.done));
+    const el = document.createElement('details'); el.id = 'fp-warm'; el.className = 'fp-warm';
+    el.open = warmOpen == null ? !started : warmOpen;
+    el.innerHTML = '<summary>Warm-up' + (started ? '' : ' first, then the sets') + '</summary><ol>' + lines.map(l => '<li>' + esc(l) + '</li>').join('') + '</ol>';
+    el.querySelector('summary').addEventListener('click', () => { warmOpen = !el.open; });
+    eff.after(el);
+  }
+  const onRender = () => { settingsCard(); relabel(); fitDays(); tipCard(); warmCard(); };
   new MutationObserver(onRender).observe(app, { childList: true });
 
   /* ---------- backups carry the plan; erasing removes it ---------- */

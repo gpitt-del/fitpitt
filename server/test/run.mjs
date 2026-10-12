@@ -114,6 +114,9 @@ try {
   ok('plan job costs money and records tokens', job.cost_usd > 0.1 && job.tokens.in === 2600 && job.model === 'claude-fable-5-1' && job.effort === 'high', job);
   const firstReq = mock.calls[mock.calls.length - 1];
   ok('a first build is told to skip the log review and keep notes short', /do not review it/.test(firstReq.messages[0].content) && /120 words/.test(firstReq.messages[0].content) && firstReq.max_tokens === 40000);
+  const daySchema = firstReq.tools[0].input_schema.properties.days.items;
+  ok('every day asks for a warm-up: the guide says how, the tool requires it, and the checked plan keeps the lines', /warmup, for every day/.test(firstReq.system[0].text)
+    && daySchema.required.includes('warmup') && daySchema.properties.warmup.type === 'array' && job.output.plan.days.every(d => d.warmup && d.warmup.length === 3), daySchema.required);
   r = await call('POST', '/coach/jobs', { kind: 'plan', intake: 'Name: Mike', currentPlan: job.output.plan, note: 'Swap leg press for hack squat', log: 'FitPitt log: leg press skipped twice' }, mike);
   job = await waitJob(mike, r.data.job.id);
   const changeReq = mock.calls[mock.calls.length - 1];

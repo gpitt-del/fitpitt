@@ -16,7 +16,7 @@ export const calls = [];
 // Fill every field the strict schema wants, as the real model would.
 function fullPlan(p, name) {
   const ex = e => ({ name: Array.isArray(e.name) ? e.name : [e.name], g: e.g, sets: e.sets, reps: Array.isArray(e.reps) ? e.reps : [e.reps, e.reps], rest: e.rest === 'long' ? 'long' : 'short', cue: e.cue || '', drop: !!e.drop, partials: !!e.partials, bw: !!e.bw, hold: !!e.hold, per: e.per || '' });
-  return { fitpitt: 1, name: (name || 'Friend') + "'s plan", for: name || 'Friend', made: new Date().toISOString().slice(0, 10), goal: p.goal || '', line: p.line || '', perWeek: p.perWeek || p.days.length, measure: 'body', effort: p.effort || '', deload: '', rules: p.rules || [], days: p.days.map(d => ({ name: d.name, short: d.short || '', ex: d.ex.map(ex) })) };
+  return { fitpitt: 1, name: (name || 'Friend') + "'s plan", for: name || 'Friend', made: new Date().toISOString().slice(0, 10), goal: p.goal || '', line: p.line || '', perWeek: p.perWeek || p.days.length, measure: 'body', effort: p.effort || '', deload: '', rules: p.rules || [], days: p.days.map(d => ({ name: d.name, short: d.short || '', warmup: d.warmup || [], ex: d.ex.map(ex) })) };
 }
 
 export function start(port = 0) {

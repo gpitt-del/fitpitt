@@ -12,7 +12,9 @@
     "**Rest about 2 minutes** on presses, rows, leg press and deadlifts, and about a minute on the rest."
   ],
   "days": [
-    { "name": "Upper 1", "short": "Upper 1", "ex": [
+    { "name": "Upper 1", "short": "Upper 1",
+      "warmup": ["5 minutes easy on the bike or rower.", "Arm circles × 10 each way, band pull-aparts × 15, push-ups × 8.", "Bench: 2 light sets, 10 reps then 5, working up to the first weight."],
+      "ex": [
       { "name": ["Barbell bench press", "Flat DB press", "Machine chest press"], "g": "chest", "sets": 3, "reps": [6, 10], "rest": "long" },
       { "name": ["Lat pulldown", "Neutral-grip lat pulldown", "Assisted pull-up"], "g": "back", "sets": 3, "reps": [8, 12], "rest": "long" },
       { "name": ["Incline DB press, 30°", "Incline machine press", "Incline DB press, 30°"], "g": "chest", "sets": 2, "reps": [8, 12], "rest": "long", "cue": "Elbows about 45 degrees from the body." },
@@ -21,7 +23,9 @@
       { "name": ["DB curl", "Incline DB curl", "Cable curl"], "g": "bi", "sets": 2, "reps": [10, 15] },
       { "name": ["Rope pushdown", "Straight-bar pushdown", "Rope pushdown"], "g": "tri", "sets": 2, "reps": [10, 15] }
     ]},
-    { "name": "Lower 1", "short": "Lower 1", "ex": [
+    { "name": "Lower 1", "short": "Lower 1",
+      "warmup": ["5 minutes easy on the bike.", "Bodyweight squats × 10, hip hinges × 10, leg swings × 10 each side.", "Squat: 2 light sets, 10 reps then 5, working up to the first weight."],
+      "ex": [
       { "name": ["Leg press", "Hack squat", "Leg press"], "g": "quad", "sets": 3, "reps": [8, 12], "rest": "long" },
       { "name": ["Romanian deadlift", "DB Romanian deadlift", "Romanian deadlift"], "g": "ham", "sets": 3, "reps": [8, 12], "rest": "long", "cue": "Stop 1 or 2 reps short on every set." },
       { "name": "Bulgarian split squat", "g": "quad", "sets": 2, "reps": [8, 12], "per": "leg", "rest": 90 },
@@ -29,7 +33,9 @@
       { "name": "Standing calf raise", "g": "calf", "sets": 3, "reps": [10, 15], "cue": "Pause 2 seconds at the bottom." },
       { "name": ["Cable crunch", "Hanging leg raise", "Cable crunch"], "g": "abs", "sets": 2, "reps": [10, 15] }
     ]},
-    { "name": "Upper 2", "short": "Upper 2", "ex": [
+    { "name": "Upper 2", "short": "Upper 2",
+      "warmup": ["5 minutes easy on the rower.", "Band pull-aparts × 15, then a light set of the first pull × 10.", "Pulldown: 2 light sets, 10 reps then 5, working up to the first weight."],
+      "ex": [
       { "name": ["Chest-supported row", "Seated cable row", "Chest-supported row"], "g": "back", "sets": 3, "reps": [8, 12], "rest": "long" },
       { "name": ["Machine chest press", "Barbell bench press", "Flat DB press"], "g": "chest", "sets": 3, "reps": [8, 12], "rest": "long" },
       { "name": ["Pec deck", "Seated cable fly", "Incline cable fly"], "g": "chest", "sets": 2, "reps": [10, 15], "drop": true },
@@ -39,7 +45,9 @@
       { "name": ["Incline DB curl", "Cable curl", "DB curl"], "g": "bi", "sets": 3, "reps": [8, 12] },
       { "name": ["Overhead cable triceps extension", "Rope pushdown", "Overhead cable triceps extension"], "g": "tri", "sets": 3, "reps": [10, 15], "cue": "Skip it if the shoulder complains. Use rope pushdowns instead." }
     ]},
-    { "name": "Lower 2", "short": "Lower 2", "ex": [
+    { "name": "Lower 2", "short": "Lower 2",
+      "warmup": ["5 minutes easy on the bike.", "Hip hinges × 10, glute bridges × 10, leg swings × 10 each side.", "Romanian deadlift: 2 light sets, 10 reps then 5, working up to the first weight."],
+      "ex": [
       { "name": ["Hack squat", "Leg press", "Hack squat"], "g": "quad", "sets": 3, "reps": [8, 12], "rest": "long" },
       { "name": "Hip thrust", "g": "glute", "sets": 3, "reps": [8, 12], "rest": "long", "cue": "Pause 1 second at the top." },
       { "name": ["Leg extension", "Single-leg leg extension", "Leg extension"], "g": "quad", "sets": 3, "reps": [10, 15] },

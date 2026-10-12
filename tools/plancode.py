@@ -53,6 +53,8 @@ def check(p):
             errs.append(at + ' has no exercises.')
         if len(ex) > 14:
             errs.append(at + ' has more than 14 exercises.')
+        if isinstance(d.get('warmup'), list) and len(d['warmup']) > 6:
+            notes.append(at + ': only the first 6 warm-up lines are kept.')
         for ei, e in enumerate(ex[:14]):
             label = '%s, exercise %d' % (at, ei + 1)
             if not isinstance(e, dict):

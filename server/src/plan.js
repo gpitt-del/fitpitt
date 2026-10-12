@@ -52,6 +52,9 @@ function dayOf(d, di, errs, notes) {
   if (!ex.length) errs.push(at + ' has no exercises.');
   if (ex.length > 14) errs.push(at + ' has ' + ex.length + ' exercises. Fourteen at most.');
   out.ex = ex.slice(0, 14).map((e, ei) => exOf(e, at + ', exercise ' + (ei + 1), errs, notes));
+  const wu = (Array.isArray(d.warmup) ? d.warmup : []).map(w => clean(w, 90)).filter(Boolean);
+  if (wu.length > 6) notes.push(at + ': only the first 6 warm-up lines are kept.');
+  if (wu.length) out.warmup = wu.slice(0, 6);
   return out;
 }
 function exOf(e, at, errs, notes) {
@@ -122,9 +125,10 @@ export const PLAN_SCHEMA = {
         properties: {
           name: { type: 'string', description: 'Up to 30 characters.' },
           short: { type: 'string', description: 'Up to 18 characters, shown under the day letter.' },
+          warmup: { type: 'array', items: { type: 'string' }, description: 'The warm-up for this day: 3 to 6 short lines, up to 90 characters each, shown at the top of the workout.' },
           ex: { type: 'array', items: exerciseSchema },
         },
-        required: ['name', 'short', 'ex'], additionalProperties: false,
+        required: ['name', 'short', 'warmup', 'ex'], additionalProperties: false,
       },
     },
   },

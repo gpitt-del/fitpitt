@@ -58,6 +58,9 @@
     if (!ex.length) errs.push(at + ' has no exercises.');
     if (ex.length > 14) errs.push(at + ' has ' + ex.length + ' exercises. Fourteen at most.');
     out.ex = ex.slice(0, 14).map((e, ei) => exOf(e, at + ', exercise ' + (ei + 1), errs, notes));
+    const wu = (Array.isArray(d.warmup) ? d.warmup : []).map(w => clean(w, 90)).filter(Boolean);
+    if (wu.length > 6) notes.push(at + ': only the first 6 warm-up lines are kept.');
+    if (wu.length) out.warmup = wu.slice(0, 6);
     return out;
   }
   function exOf(e, at, errs, notes) {
@@ -97,12 +100,12 @@
     return X(id, x.g, x.sets, x.reps[0], x.reps[1], long ? 'c' : 'i', names, o);
   }
   function toProgram(pl) {
-    const days = {}, slots = {};
-    pl.days.forEach((d, i) => { const k = DAYS[i]; days[k] = [d.name, d.short]; slots[k] = d.ex.map((x, j) => slotOfEx(x, k + (j + 1))); });
+    const days = {}, slots = {}, warm = {};
+    pl.days.forEach((d, i) => { const k = DAYS[i]; days[k] = [d.name, d.short]; slots[k] = d.ex.map((x, j) => slotOfEx(x, k + (j + 1))); if (d.warmup) warm[k] = d.warmup; });
     const own = (pl.rules || []).map(r => bold(r));
     return {
       name: pl.name, line: pl.line, perWeek: pl.perWeek, freq: pl.perWeek / pl.days.length, measure: pl.measure, personal: pl,
-      days, slots,
+      days, slots, warm,
       effort: () => pl.effort || DEF_EFFORT,
       deload: pl.deload || DEF_DELOAD(pl.measure),
       // The first rule ends in "add weight next time." so the weekly-step add-on (l.js) rewrites it like the other plans.
@@ -112,6 +115,20 @@
           '<b>Pain is a stop sign.</b> Sharp or joint pain means stop that exercise and get it checked. This plan is training, not medical advice.',
         ]),
     };
+  }
+  // The warm-up for a day: the plan's own lines, or a generic one built from what the day trains (Gabe, Oct 12: every
+  // workout starts with a warm-up, because going cold into the first working set is where people get hurt).
+  function warmFor(prog, day) {
+    if (prog && prog.warm && prog.warm[day]) return prog.warm[day];
+    const gs = new Set(((prog && prog.slots && prog.slots[day]) || []).map(s => s.g));
+    const has = list => list.some(g => gs.has(g));
+    const L = ['3 to 5 minutes easy: bike, row or a brisk walk.'];
+    if (has(['quad', 'ham', 'glute', 'calf', 'add', 'abd', 'lower'])) L.push('Bodyweight squats × 10, hip hinges × 10, leg swings × 10 each side.');
+    if (has(['chest', 'press', 'sdelt', 'rdelt', 'tri', 'upper'])) L.push('Arm circles × 10 each way, band pull-aparts × 15, push-ups × 8.');
+    if (has(['back', 'trap', 'bi'])) L.push('Band pull-aparts × 15, then a light set of the first pull × 10.');
+    if (has(['jump', 'throw', 'armor'])) L.push('Skips and side shuffles for a minute, then 5 soft landings from a small hop.');
+    L.push("First exercise: two light sets, 10 reps then 5, working up to today's weight.");
+    return L;
   }
   function register(pl) {
     PROGRAMS.mine = toProgram(pl);
@@ -175,7 +192,7 @@
   }
   function safeCheck(raw) { try { return check(raw); } catch (e) { return { errs: ['This plan could not be read. Ask for a fresh copy.'], notes: [] }; } }
 
-  window.FP_PLAN = { KEY, DAYS, check: safeCheck, toProgram, register, read, store, forget, encode, decode, link, canZip };
+  window.FP_PLAN = { warmFor, KEY, DAYS, check: safeCheck, toProgram, register, read, store, forget, encode, decode, link, canZip };
   const saved = read();
   if (saved) register(saved.plan);
 })();

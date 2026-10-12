@@ -46,10 +46,11 @@ How to write a plan:
 - Reps: 6 to 10 or 8 to 12 for big compound lifts, 10 to 15 or 12 to 20 for isolation. Holds (planks) use seconds with "hold": true.
 - rest: "long" for presses, rows, squats, hinges, leg press; "short" for the rest.
 - effort text: beginners stop 2 or 3 reps short; experienced leave 1 or 2 on early sets and take the last set to failure.
+- warmup, for every day: 3 to 6 short lines (up to 90 characters each) that the app shows at the top of that workout. A few minutes easy (bike, row, walk), then movement prep for what the day trains (hips, hinges and leg swings before legs; arm circles, band pull-aparts and push-ups before pressing; balance, hip and hamstring work and soft landings before jumps), then two light ramp-up sets of the first exercise. Written for the day, not the same lines every day.
 - rules: up to 8 short lines, each starting with a **bold lead**. Put injury work-arounds here (e.g. "**Look after the left shoulder.** No overhead pressing.").
 - Prefer exercise names from this catalogue, spelled exactly (the app shows photos and a sketch for them):
 ${CATALOGUE.join(' · ')}
-- Field limits: name 40 characters, goal 120, line 140, day name 30, short 18, exercise name 60, cue 160, rules 300 each. Sets 1 to 8. perWeek 1 to 7. Up to 6 days, 14 exercises a day.
+- Field limits: name 40 characters, goal 120, line 140, day name 30, short 18, exercise name 60, cue 160, rules 300 each, warm-up lines 90 each and 6 a day. Sets 1 to 8. perWeek 1 to 7. Up to 6 days, 14 exercises a day.
 - Fill every field of submit_plan. Use "" for a text field you have nothing for, false for a flag you do not want, "" for per when it does not apply.`;
 
 // Kids (the `kid` role) get the youth rules on top. Positions: Lloyd et al. 2014 international consensus on youth
