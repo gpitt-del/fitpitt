@@ -26,8 +26,37 @@
     '.fp-err{color:var(--alert);font-size:15px}.fp-err:empty{display:none}.fp-err ul{padding-left:18px;margin-top:4px}' +
     '.fp-sub{font:700 20px/1.2 var(--fc);margin:22px 0 8px}.pick + .fp-sub{margin-top:26px}' +
     '.fp-fix summary{font-size:14px;color:var(--muted);cursor:pointer;margin-top:14px}' +
-    '.fp-coach{padding:10px 12px;border-left:3px solid var(--day);font-size:15px;line-height:1.45}';
+    '.fp-coach{padding:10px 12px;border-left:3px solid var(--day);font-size:15px;line-height:1.45}' +
+    '.brand-who{white-space:nowrap;opacity:.8}';
   document.head.appendChild(css);
+
+  /* ---------- the quote in the brand bar: one a day, tap for the next (Gabe, Oct 12: famous or fit people) ---------- */
+  const QUOTES = [
+    ['Nothing will work unless you do.', 'Maya Angelou'],
+    ['Hard choices, easy life. Easy choices, hard life.', 'Jerzy Gregorek'],
+    ['At dawn, when you have trouble getting out of bed, tell yourself: I have to go to work as a human being.', 'Marcus Aurelius'],
+    ["Practice like it's competition and compete like it's another day on the practice court.", 'Karch Kiraly'],
+    ['Strength does not come from winning. Your struggles develop your strengths.', 'Arnold Schwarzenegger'],
+    ['First say to yourself what you would be; and then do what you have to do.', 'Epictetus'],
+    ['Adversity, if you allow it to, will fortify you and make you the best you can be.', 'Kerri Walsh Jennings'],
+    ["Don't have $100 shoes and a 10-cent squat.", 'Louie Simmons'],
+    ["You're either getting better or getting worse. I don't think you stay the same in sports.", 'Russ Rose'],
+    ['Difficulties strengthen the mind, as labor does the body.', 'Seneca'],
+    ['The goal is to keep the goal the goal.', 'Dan John'],
+    ['The will to win is more important than the skill to win.', 'Lloy Ball'],
+    ['The mind is the limit.', 'Arnold Schwarzenegger'],
+    ['It is a shame to grow old without seeing the beauty and strength of which your body is capable.', 'Socrates'],
+    ['You cannot succeed without believing in yourself, and that belief is completely under your control.', 'Karch Kiraly'],
+    ['We are what we repeatedly do. Excellence, then, is not an act, but a habit.', 'Aristotle'],
+    ['The game teaches the game.', 'John Kessel'],
+    ["Take care of your body. It's the only place you have to live.", 'Jim Rohn'],
+    ['You have to be willing to fail, to improve.', 'Al Scates'],
+    ["Don't count the days; make the days count.", 'Muhammad Ali'],
+  ];
+  let quoteAt = Math.floor(Date.now() / 86400000) % QUOTES.length;
+  function showQuote() { const el = $('#brand-q'); if (!el) return; const q = QUOTES[quoteAt]; el.innerHTML = '“' + esc(q[0]) + '” <span class="brand-who">— ' + esc(q[1]) + '</span>'; }
+  ACT.fpQuote = () => { quoteAt = (quoteAt + 1) % QUOTES.length; showQuote(); };
+  showQuote();
 
   /* ---------- small helpers ---------- */
   const inIosBrowser = () => navigator.standalone === false; // iPhone Safari, not the copy on the Home Screen
