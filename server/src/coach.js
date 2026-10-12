@@ -40,6 +40,7 @@ const PLAN_GUIDE = `How FitPitt runs a plan (the app does all of this; do not re
 How to write a plan:
 - Build it around the exercises they already do and like. Swap only for an injury, missing equipment or a gap.
 - Fit their days and session length: about 3.25 minutes per set on long rest, 2 minutes on short rest, so 60 minutes holds roughly 18 to 24 sets.
+- Split by days a week: 2, full body; 3, full body for beginners or push/pull/legs for the experienced; 4, upper/lower; 5 or 6, push/pull/legs or an upper/lower/body-part mix. Keep every muscle at twice a week where the volume allows (frequency is a tiebreaker once weekly volume is set).
 - Only equipment they have.
 - Volume: beginners about 6 to 10 hard sets per muscle per week; experienced 10 to 20. Spread a muscle over two or more days where it fits.
 - Reps: 6 to 10 or 8 to 12 for big compound lifts, 10 to 15 or 12 to 20 for isolation. Holds (planks) use seconds with "hold": true.
@@ -116,7 +117,11 @@ export async function callClaude(env, body, msLeft) {
     const e = new Error((data && data.error && data.error.message) || ('Claude API ' + res.status)); e.status = res.status; e.retryable = res.status === 429 || res.status === 529 || res.status >= 500; throw e;
   }
   let data;
-  try { data = await readStream(res); } catch (e) { if (e && e.name === 'AbortError') throw tooLong(); throw e; }
+  const seen = { usage: {}, chars: 0 }; // what arrived before a cut-off, so a timed-out call is still billed for what the model wrote
+  try { data = await readStream(res, seen); } catch (e) {
+    if (e && e.name === 'AbortError') { const t = tooLong(); t.partialUsage = Object.assign({}, seen.usage, { output_tokens: Math.max(+seen.usage.output_tokens || 0, Math.ceil(seen.chars / 3.5)) }); throw t; }
+    throw e;
+  }
   finally { clearTimeout(timer); }
   const content = data.content || [];
   const out = { message: data, usage: data.usage || {}, text: content.filter(c => c.type === 'text').map(c => c.text).join('\n').trim(), toolInput: null, stop: data.stop_reason };
@@ -125,12 +130,12 @@ export async function callClaude(env, body, msLeft) {
 }
 
 // Server-sent events from /v1/messages, assembled into one message. An `error` event mid-stream is retryable.
-async function readStream(res) {
+async function readStream(res, seen) {
   const blocks = [];
   const msg = { id: null, type: 'message', role: 'assistant', model: null, content: blocks, stop_reason: null, stop_sequence: null, usage: {} };
   const apply = (name, d) => {
     switch (name) {
-      case 'message_start': { const m = d.message || {}; msg.id = m.id || null; msg.model = m.model || null; Object.assign(msg.usage, m.usage || {}); break; }
+      case 'message_start': { const m = d.message || {}; msg.id = m.id || null; msg.model = m.model || null; Object.assign(msg.usage, m.usage || {}); if (seen) Object.assign(seen.usage, m.usage || {}); break; }
       case 'content_block_start': {
         const b = Object.assign({}, d.content_block || {});
         if (b.type === 'text') b.text = b.text || '';
@@ -140,9 +145,9 @@ async function readStream(res) {
       }
       case 'content_block_delta': {
         const b = blocks[d.index], x = d.delta || {}; if (!b) break;
-        if (x.type === 'text_delta') b.text += x.text || '';
-        else if (x.type === 'input_json_delta') b._json += x.partial_json || '';
-        else if (x.type === 'thinking_delta') b.thinking += x.thinking || '';
+        if (x.type === 'text_delta') { b.text += x.text || ''; if (seen) seen.chars += (x.text || '').length; }
+        else if (x.type === 'input_json_delta') { b._json += x.partial_json || ''; if (seen) seen.chars += (x.partial_json || '').length; }
+        else if (x.type === 'thinking_delta') { b.thinking += x.thinking || ''; if (seen) seen.chars += (x.thinking || '').length; }
         else if (x.type === 'signature_delta') b.signature = x.signature || '';
         break;
       }
@@ -193,7 +198,7 @@ export async function runJob(env, job, person, settings, memo, deadline) {
     const kept = memo ? await memo.get(n) : null;
     if (kept) return kept;
     let r;
-    try { r = await callClaude(env, body, left()); } catch (e) { e.usages = usages; throw e; }
+    try { r = await callClaude(env, body, left()); } catch (e) { if (e.partialUsage) usages.push(e.partialUsage); e.usages = usages; throw e; }
     usages.push(r.usage);
     if (memo) await memo.set(n, r);
     return r;

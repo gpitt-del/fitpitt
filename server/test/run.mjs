@@ -168,6 +168,13 @@ try {
   ok('an API refusal fails cleanly without retries', job.status === 'failed' && job.attempts === 1 && /refused by the stand-in/.test(job.error), job);
   r = await call('GET', '/coach/jobs?limit=3', undefined, mike);
   ok('a person can list their recent jobs', r.data.jobs.length === 3 && r.data.jobs.every(j => j.person_id === mikeId));
+  { // a call cut off by the time limit is still billed for what had arrived (the API bills those tokens)
+    const { callClaude } = await import('../src/coach.js');
+    const env = { ANTHROPIC_API_KEY: 'test-key', ANTHROPIC_BASE_URL: 'http://127.0.0.1:' + mock.port };
+    let err = null; const t0 = Date.now();
+    try { await callClaude(env, { model: 'claude-fable-5-1', max_tokens: 100, stream: true, messages: [{ role: 'user', content: 'stall' }] }, 30000); } catch (e) { err = e; }
+    ok('a stalled stream is cut off at the time limit and carries an estimate of what was billed', err && /too long/.test(err.message) && err.retryable === false && err.partialUsage && err.partialUsage.input_tokens === 2600 && err.partialUsage.output_tokens >= 200 && Date.now() - t0 >= 29000, err && (err.message + ' ' + JSON.stringify(err.partialUsage)));
+  }
   r = await call('GET', '/coach/jobs/' + job.id, undefined, gabe);
   ok("another person cannot read Mike's job", r.status === 404);
 

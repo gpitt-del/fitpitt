@@ -55,6 +55,14 @@ export function start(port = 0) {
         if (process.env.SLOW_MS) await new Promise(r => setTimeout(r, +process.env.SLOW_MS));
         if (text.includes('fail529') && !failed529) { failed529 = true; return reply(529, { type: 'error', error: { type: 'overloaded_error', message: 'Overloaded' } }); }
         if (text.includes('refuse')) return reply(400, { type: 'error', error: { type: 'invalid_request_error', message: 'refused by the stand-in' } });
+        if (text.includes('stall') && b.stream) { // starts answering, then never finishes: the caller's time limit has to cut it off
+          res.writeHead(200, { 'content-type': 'text/event-stream' });
+          const ev = (name, d) => res.write('event: ' + name + '\ndata: ' + JSON.stringify(Object.assign({ type: name }, d)) + '\n\n');
+          ev('message_start', { message: { id: 'msg_stall', type: 'message', role: 'assistant', model: b.model, content: [], stop_reason: null, stop_sequence: null, usage: { input_tokens: 2600, cache_creation_input_tokens: 2000, cache_read_input_tokens: 0, output_tokens: 1 } } });
+          ev('content_block_start', { index: 0, content_block: { type: 'thinking', thinking: '' } });
+          ev('content_block_delta', { index: 0, delta: { type: 'thinking_delta', thinking: 'x'.repeat(700) } });
+          return; // the connection stays open until the client gives up
+        }
         const usage = { input_tokens: 2600, output_tokens: b.tools ? 2200 : 400, cache_read_input_tokens: 0, cache_creation_input_tokens: 2000 };
         if (b.tools && b.tools.some(t => t.name === 'submit_plan')) {
           const nameM = text.match(/Name: ([A-Za-z]+)/), name = nameM ? nameM[1] : 'Friend';
