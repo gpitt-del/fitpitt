@@ -108,6 +108,12 @@ async def main():
         ok('the brand bar shows FitPitt, a quote with its author, and the release version, which matches sw.js', brand.startswith('FitPitt') and '“' in brand and '—' in brand and ('v' + sw_v) in brand and await page.locator('#brand').is_visible(), (brand, sw_v))
         q1 = await page.inner_text('#brand-q'); await page.click('[data-act="fpQuote"]'); q2 = await page.inner_text('#brand-q')
         ok('tapping the quote shows the next one', q1 != q2 and '“' in q2, (q1, q2))
+        cycle = []
+        for _ in range(30):
+            cycle.append(await page.inner_text('#brand-q')); await page.click('[data-act="fpQuote"]')
+        light = [i for i, q in enumerate(cycle) if re.search(r'\((19|20)\d\d\)$', q) or 'Ronnie Coleman' in q or 'Yogi Berra' in q or 'Jack LaLanne' in q]
+        gaps = [b - a for a, b in zip(light, light[1:])]
+        ok('every fourth quote is a light one and film lines name the film and year', len(set(cycle)) == 27 and 'Talladega Nights (2006)' in ' '.join(cycle) and gaps and all(3 <= g <= 4 for g in gaps), (light, gaps))
         ok('first screen lists the 4 ready-made plans', await page.locator('#app [data-act="pickProgram"]').count() == 4)
         ok('tabs hidden on the first screen', await page.locator('#tabs').is_hidden())
         await shot(page, '01-first-screen')

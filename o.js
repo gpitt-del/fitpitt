@@ -34,27 +34,35 @@
   document.head.appendChild(css);
 
   /* ---------- the quote in the brand bar: one a day, tap for the next (Gabe, Oct 12: famous or fit people) ---------- */
+  // Every fourth quote is a light one (Gabe, Oct 12): a film line with the film and year, or a champion being funny.
   const QUOTES = [
     ['Nothing will work unless you do.', 'Maya Angelou', 'poet and memoirist'],
     ['Hard choices, easy life. Easy choices, hard life.', 'Jerzy Gregorek', 'world weightlifting champion'],
     ['Confine yourself to the present.', 'Marcus Aurelius', 'Roman emperor and Stoic'],
+    ['If you ain\'t first, you\'re last.', 'Ricky Bobby', 'Talladega Nights (2006)'],
     ["Practice like it's competition and compete like it's another day on the practice court.", 'Karch Kiraly', 'Olympic gold indoors and on the beach'],
     ['Strength does not come from winning. Your struggles develop your strengths.', 'Arnold Schwarzenegger', 'seven-time Mr. Olympia'],
     ['First say to yourself what you would be; and then do what you have to do.', 'Epictetus', 'Stoic philosopher, born a slave'],
+    ['Rule number one: cardio.', 'Columbus', 'Zombieland (2009)'],
     ['Adversity, if you allow it to, will fortify you and make you the best you can be.', 'Kerri Walsh Jennings', 'three Olympic beach volleyball golds'],
     ["Don't have $100 shoes and a 10-cent squat.", 'Louie Simmons', 'founder of Westside Barbell'],
     ["You're either getting better or getting worse. I don't think you stay the same in sports.", 'Russ Rose', 'Penn State coach, seven national titles'],
+    ['If you can dodge a wrench, you can dodge a ball.', 'Patches O\'Houlihan', 'Dodgeball (2004)'],
     ['Difficulties strengthen the mind, as labor does the body.', 'Seneca', 'Stoic philosopher'],
     ['The goal is to keep the goal the goal.', 'Dan John', 'strength coach and author'],
     ['The will to win is more important than the skill to win.', 'Lloy Ball', 'USA setter, Olympic gold 2008'],
+    ['Lightweight, baby!', 'Ronnie Coleman', 'eight-time Mr. Olympia'],
     ['The mind is the limit.', 'Arnold Schwarzenegger', 'seven-time Mr. Olympia'],
     ['It is a shame to grow old without seeing the beauty and strength of which your body is capable.', 'Socrates', 'Athenian philosopher'],
     ['You cannot succeed without believing in yourself, and that belief is completely under your control.', 'Karch Kiraly', 'Olympic gold indoors and on the beach'],
+    ['Baseball is ninety percent mental. The other half is physical.', 'Yogi Berra', 'Yankees catcher, ten World Series rings'],
     ['We are what we repeatedly do. Excellence, then, is not an act, but a habit.', 'Aristotle', 'Greek philosopher'],
     ['The game teaches the game.', 'John Kessel', 'USA Volleyball coaching educator'],
     ["Take care of your body. It's the only place you have to live.", 'Jim Rohn', 'speaker on personal discipline'],
+    ['Feel the rhythm, feel the rhyme, get on up, it\'s bobsled time!', 'Sanka Coffie', 'Cool Runnings (1993)'],
     ['You have to be willing to fail, to improve.', 'Al Scates', 'UCLA coach, nineteen national titles'],
     ["Don't count the days; make the days count.", 'Muhammad Ali', 'three-time heavyweight champion'],
+    ['I can\'t die. It would ruin my image.', 'Jack LaLanne', 'fitness pioneer, trained to 96'],
   ];
   let quoteAt = Math.floor(Date.now() / 86400000) % QUOTES.length;
   function showQuote() { const el = $('#brand-q'); if (!el) return; const q = QUOTES[quoteAt]; el.innerHTML = '“' + esc(q[0]) + '” <span class="brand-who">— ' + esc(q[1]) + (q[2] ? ', ' + esc(q[2]) : '') + '</span>'; }
