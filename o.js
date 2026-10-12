@@ -27,7 +27,7 @@
     '.fp-sub{font:700 20px/1.2 var(--fc);margin:22px 0 8px}.pick + .fp-sub{margin-top:26px}' +
     '.fp-fix summary{font-size:14px;color:var(--muted);cursor:pointer;margin-top:14px}' +
     '.fp-coach{padding:10px 12px;border-left:3px solid var(--day);font-size:15px;line-height:1.45}' +
-    '.brand-who{white-space:nowrap;opacity:.8}';
+    '.brand-who{white-space:nowrap;opacity:.8;font-size:14px}';
   document.head.appendChild(css);
 
   /* ---------- the quote in the brand bar: one a day, tap for the next (Gabe, Oct 12: famous or fit people) ---------- */

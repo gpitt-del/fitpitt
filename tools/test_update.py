@@ -5,7 +5,7 @@
 Exports the old release with git archive, serves it, installs it in a simulated phone, then swaps the
 served folder to this working tree and reloads, as a GitHub Pages update would.
 """
-import asyncio, json, os, sys, datetime, subprocess, tempfile, socket, time, shutil
+import asyncio, json, os, sys, datetime, subprocess, tempfile, socket, time, shutil, io, tarfile, threading, http.server
 from pathlib import Path
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
@@ -16,8 +16,9 @@ from playwright.async_api import async_playwright
 OLD_REF = sys.argv[1] if len(sys.argv) > 1 else 'HEAD~1'
 TMP = Path(tempfile.mkdtemp(prefix='fitpitt-update-'))
 OLD = TMP / 'old'; OLD.mkdir()
-subprocess.run('git -C "%s" archive %s | tar -x -C "%s"' % (ROOT, OLD_REF, OLD), shell=True, check=True)
-LINK = str(TMP / 'site')
+# The old release, from git. Unpacked in Python so this runs on Windows too (no tar, no symlinks).
+tarfile.open(fileobj=io.BytesIO(subprocess.run(['git', '-C', str(ROOT), 'archive', OLD_REF], capture_output=True, check=True).stdout)).extractall(OLD)
+SERVE = {'dir': str(OLD)}  # which tree the local server hands out; point() switches it, like a release
 s = socket.socket(); s.bind(('127.0.0.1', 0)); PORT = s.getsockname()[1]; s.close()
 SITE = 'http://localhost:%d/' % PORT
 PLAN = json.load(open(HERE / 'sample-plan.json'))
@@ -29,7 +30,10 @@ results = []
 def ok(name, cond, detail=''):
     results.append((name, bool(cond))); print(('PASS ' if cond else 'FAIL ') + name + ('' if cond or not detail else '  ::  ' + str(detail)[:300]), flush=True)
 def point(target):
-    tmp = LINK + '.tmp'; os.symlink(target, tmp); os.replace(tmp, LINK)
+    SERVE['dir'] = target
+class Handler(http.server.SimpleHTTPRequestHandler):
+    def __init__(self, *a, **k): super().__init__(*a, directory=SERVE['dir'], **k)
+    def log_message(self, *a): pass
 
 async def caches(page):
     return await page.evaluate('caches.keys()')
@@ -95,10 +99,10 @@ async def main():
     sys.exit(1 if bad else 0)
 
 point(str(ROOT))
-server = subprocess.Popen([sys.executable, '-m', 'http.server', str(PORT), '--bind', '127.0.0.1', '--directory', LINK], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+server = http.server.ThreadingHTTPServer(('127.0.0.1', PORT), Handler)
+threading.Thread(target=server.serve_forever, daemon=True).start()
 try:
-    time.sleep(0.8)
     asyncio.run(main())
 finally:
-    server.terminate()
+    server.shutdown()
     shutil.rmtree(TMP, ignore_errors=True)
