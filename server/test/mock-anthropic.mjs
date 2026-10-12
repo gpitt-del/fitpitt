@@ -63,6 +63,15 @@ export function start(port = 0) {
           let plan = fullPlan(sample, name);
           if (text.includes('badplan') && !isFix) plan = Object.assign({}, plan, { name: '' }); // first try broken, fixed on the second
           if (text.includes('hopeless')) plan = Object.assign({}, plan, { days: [] });
+          if (text.includes('capped') && b.stream) { // ran out of output: the tool JSON stops mid-way and stop_reason is max_tokens
+            res.writeHead(200, { 'content-type': 'text/event-stream' });
+            const ev = (name, d) => res.write('event: ' + name + '\ndata: ' + JSON.stringify(Object.assign({ type: name }, d)) + '\n\n');
+            ev('message_start', { message: { id: 'msg_test', type: 'message', role: 'assistant', model: b.model, content: [], stop_reason: null, stop_sequence: null, usage: { input_tokens: 2600, cache_creation_input_tokens: 2000, cache_read_input_tokens: 0, output_tokens: 1 } } });
+            ev('content_block_start', { index: 0, content_block: { type: 'thinking', thinking: '' } }); ev('content_block_delta', { index: 0, delta: { type: 'thinking_delta', thinking: 'Still thinking…' } }); ev('content_block_stop', { index: 0 });
+            ev('content_block_start', { index: 1, content_block: { type: 'tool_use', id: 'toolu_1', name: 'submit_plan', input: {} } }); ev('content_block_delta', { index: 1, delta: { type: 'input_json_delta', partial_json: JSON.stringify(plan).slice(0, 120) } }); ev('content_block_stop', { index: 1 });
+            ev('message_delta', { delta: { stop_reason: 'max_tokens', stop_sequence: null }, usage: { output_tokens: 24000 } }); ev('message_stop', {});
+            return res.end();
+          }
           return send(b, { id: 'msg_test', type: 'message', role: 'assistant', model: b.model, stop_reason: 'tool_use', usage,
             content: [{ type: 'text', text: 'Here is the plan.' }, { type: 'tool_use', id: 'toolu_1', name: 'submit_plan', input: plan }] });
         }

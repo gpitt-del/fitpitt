@@ -25,7 +25,8 @@
     'textarea.fp-code{font-family:ui-monospace,Menlo,Consolas,monospace;word-break:break-all;resize:vertical}' +
     '.fp-err{color:var(--alert);font-size:15px}.fp-err:empty{display:none}.fp-err ul{padding-left:18px;margin-top:4px}' +
     '.fp-sub{font:700 20px/1.2 var(--fc);margin:22px 0 8px}.pick + .fp-sub{margin-top:26px}' +
-    '.fp-fix summary{font-size:14px;color:var(--muted);cursor:pointer;margin-top:14px}';
+    '.fp-fix summary{font-size:14px;color:var(--muted);cursor:pointer;margin-top:14px}' +
+    '.fp-coach{padding:10px 12px;border-left:3px solid var(--day);font-size:15px;line-height:1.45}';
   document.head.appendChild(css);
 
   /* ---------- small helpers ---------- */
@@ -52,7 +53,7 @@
   /* ---------- first screen ---------- */
   viewChooser = function () {
     const st = F.read();
-    let h = '<header class="hero"><div><h1>FitPitt</h1><p>Pick how you want to start. You can change it later in Settings.</p></div></header>';
+    let h = '<header class="hero"><div><h1>Welcome</h1><p>Pick how you want to start. You can change it later in Settings.</p></div></header>';
     h += '<p class="fp-sub" style="margin-top:4px">Your own plan</p><div class="pick">' +
       (st ? '<button data-act="pickProgram" data-p="mine"><strong>' + esc(st.plan.name) + '</strong><span>' + esc(madeLine(st.plan) + ' ' + st.plan.line) + '</span></button>' : '') +
       '<button data-act="fpIntake"><strong>Get a plan built for you</strong><span>Two minutes of questions, then a plan built around the exercises you already do.</span></button>' +
@@ -72,7 +73,7 @@
       { k: 'goalText', t: 'area', label: 'In your own words', max: 400, ph: 'Bigger shoulders and a stronger back. Ready for ski season in March.' },
       { k: 'sport', t: 'text', label: 'Sport and position, if you train for one', max: 120, ph: SPORT_PH } ] },
     { title: 'Your week', fields: [
-      { k: 'days', t: 'chips', label: 'Days a week you can train', req: 1, opts: ['2', '3', '4', '5', '6'] },
+      { k: 'days', t: 'chips', label: 'Days a week you can train', req: 1, opts: ['2', '3', '4', '5', '6', '7'] },
       { k: 'mins', t: 'chips', label: 'Time for each session', req: 1, opts: ['30 min', '45 min', '60 min', '75 min', '90 min'] } ] },
     { title: 'Where you train', fields: [
       { k: 'where', t: 'chips', label: 'Place', req: 1, opts: ['Full gym', 'Home, with dumbbells', 'Home, little or no equipment'] },
@@ -229,6 +230,7 @@
     const turns = keys.some(k => prog.slots[k].some(s => s.names[0] !== s.names[1] || s.names[1] !== s.names[2]));
     let h = '<h2>' + esc(pl.name) + '</h2><p class="small muted">' + esc(madeLine(pl) + ' ' + pl.line) + ' The same 52-week year as the other plans: seven blocks, each ending with a deload week' + (pl.measure === 'tests' ? ' and a re-test.' : ' and a scan.') + '</p>';
     if (pl.goal) h += '<p style="margin-top:10px"><b>Goal:</b> ' + esc(pl.goal) + '</p>';
+    if (pend.text) h += '<p class="fp-sub">From the coach</p><p class="fp-coach">' + esc(pend.text).replace(/\n+/g, '<br>') + '</p>';
     if (inIosBrowser() && pend.code) h += '<div class="notice"><b>Is FitPitt on your Home Screen?</b> Links open in Safari, which keeps a separate copy of the app. Copy the code, open FitPitt from your Home Screen and tap <b>I have a plan code</b>. Or use the plan right here in Safari.<br><button class="btn small" data-act="fpCopyCode">Copy the code</button></div>';
     h += '<div class="menu">' + keys.map(k => '<h3>' + plate(k, 'sm') + esc(prog.days[k][0]) + '</h3><ol>' + prog.slots[k].map(s => '<li><span>' + esc(s.names[0]) + '</span><span>' + esc(target(s)) + '</span></li>').join('') + '</ol>').join('') + '</div>';
     if (turns) h += '<p class="small muted" style="margin-top:8px">Some exercises change from block to block. The Plan tab shows each block.</p>';
@@ -320,7 +322,7 @@
   }
   window.addEventListener('hashchange', fromLink); // a link opened in a page that already shows FitPitt
   // Used by the account add-on (p.js), which builds plans through the coach instead of a text to Gabe.
-  window.FP_UI = { openText, collectIntake, intakeText, previewPlan(plan, code, notes) { pend = { plan, code: code || '', notes: notes || [] }; previewSheet(); }, intakeSheet,
+  window.FP_UI = { openText, collectIntake, intakeText, previewPlan(plan, code, notes, text) { pend = { plan, code: code || '', notes: notes || [], text: String(text || '').trim().slice(0, 1500) }; previewSheet(); }, intakeSheet,
     intakeWho(w) { who = { name: String((w && w.name) || '').slice(0, 30), kind: w && w.kind === 'kid' ? 'kid' : 'adult' }; } };
   fromLink();
   onRender();

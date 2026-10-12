@@ -6,19 +6,19 @@ FitPitt is a phone workout log (a home-screen web app) at https://gpitt-del.gith
 - `index.html` loads plain scripts in this order: a b c d **n** e f g h i j k l m **o p**. a–e are the base app. The rest are add-ons that run only on this site (`STANDALONE`) and wrap or add to what the base defines (`ACT` handlers, `viewChooser`, `scanSheet`, `aim`, and so on). New features go in a new add-on file, not in edits to existing files.
 - **`n.js` must load before `e.js`**, because `e.js` loads the log at its end and drops a plan key it does not know. Every other add-on loads after `e.js`, so the first screen has already been drawn once when they arrive.
 - Each person's log lives on their own phone (localStorage key `traininglog.v1`); a signed-in phone also syncs it to the person's account (p.js, server/).
-- `sw.js` gives offline use. Bump `CACHE` on every release (`fitpitt-v15` now) and keep `SHELL` listing every app file. `tools/` is not part of the app and is not cached.
+- `sw.js` gives offline use. Bump `CACHE` on every release (`fitpitt-v16` now) **and the version in the `#brand` bar in index.html** (a check in tools/test_personal_plans.py keeps them equal); keep `SHELL` listing every app file. `tools/` is not part of the app and is not cached.
 - Photo reader for InBody sheets: `m.js` plus the `ocr7/` folder (Tesseract.js 7.0.0, unmodified). Never change `ocr7/` in place; a newer reader goes in a new folder.
 - Personal plans: `n.js` is the model (checking, codes, turning a plan into the program key `"mine"`); `o.js` has the screens (intake, paste a code, preview, Settings card, backups that carry the plan). The intake is five blocks for adults and five sport-focused blocks for kids (`ADULT` and `KID` in o.js); p.js picks the set by the account's role and supplies the name. The plan format is checked the same way by `tools/plancode.py`; if the format changes, change both.
 
 ## Testing and releasing
-- `python3 tools/test_personal_plans.py [screenshot folder]` runs 94 end-to-end checks in simulated phones (Playwright, headless Chromium). It runs with the API address index.html ships, so a signed-out phone saves intake answers instead of texting them; `tools/test_accounts.py` covers the signed-in paths against a local Worker and a stand-in Claude.
+- `python3 tools/test_personal_plans.py [screenshot folder]` runs 96 end-to-end checks in simulated phones (Playwright, headless Chromium). It runs with the API address index.html ships, so a signed-out phone saves intake answers instead of texting them; `tools/test_accounts.py` covers the signed-in paths against a local Worker and a stand-in Claude.
 - `python3 tools/test_update.py <previous release ref>` installs that release in a simulated phone, switches to this tree, and checks one reload brings the update, keeps the log, and works offline.
 - A push to `gh-pages` is a release; Pages rebuilds in about 30 seconds. After pushing, compare the pushed files with the tested ones and check the Pages run finished.
 - Push work in progress to a branch early. A whole build of personal plans was once lost because it lived only in a session that ended.
 
 ## Where things stand (Oct 11 2026)
-- Personal plans, accounts, sync and the coach are built and tested (tools/test_personal_plans.py 94 checks,
-  tools/test_accounts.py 49, server/test/run.mjs 61, tools/test_update.py 9 or 10).
+- Personal plans, accounts, sync and the coach are built and tested (tools/test_personal_plans.py 96 checks,
+  tools/test_accounts.py 52, server/test/run.mjs 64, tools/test_update.py 9 or 10).
 - The Worker is deployed at https://fitpitt-api.fitpitt-api.workers.dev (Gabe's personal Cloudflare account, free plan,
   D1 database `fitpitt`), and index.html's `fitpitt-api` meta tag points at it. The release to `gh-pages` is the merge
   of `personal-plans`.
@@ -42,6 +42,14 @@ FitPitt is a phone workout log (a home-screen web app) at https://gpitt-del.gith
   max efforts allowed, landing and knee-injury prevention work, sessions fitted around practices). Jobs run in a Durable Object
   alarm so a phone can lock mid-build; every model reply is kept so a retry never pays twice. Training only: no
   medical, drug, supplement or peptide advice; pain means stop and get checked.
+- **Coach set-up (Gabe, Oct 12: accuracy over cost):** plans and weekly reviews at high effort with room to think
+  (40000 and 12000 output tokens; thinking counts; 16000 was used up by thinking alone on the first real build),
+  questions at medium for speed mid-workout. Model, effort and max tokens are per task in Settings → FitPitt admin;
+  when the cap is hit the error says so. One streamed call gets 13 minutes (the Durable Object alarm allows 15).
+- **First build vs. a change:** a first build is told not to review the log (it once wrote the review and never got to
+  the plan) and may add up to 120 words of notes; **Change my plan** (Settings, on a personal plan) sends a note, the
+  current plan and the log, and the coach starts from the plan, uses the log, and explains what changed. The notes
+  show under the plan in the preview.
 - **Money:** each call's tokens and cost are recorded, failures included. Admin screen flags anyone but Gabe over $5
   a month; the server stops a person at $20 (or their own cap) and everyone at a $150 ceiling. Unknown models are
   charged at the dearest known price; a task model without a price is refused.

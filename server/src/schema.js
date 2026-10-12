@@ -74,9 +74,12 @@ export const DEFAULT_SETTINGS = {
   stop_usd: 20,       // the server refuses more coach work for a person past this in a month (admins exempt unless capped)
   ceiling_usd: 150,   // the server refuses coach work for everyone once the month passes this
   tasks: {
-    plan: { model: 'claude-fable-5-1', effort: 'high', max_tokens: 16000 },
-    review: { model: 'claude-fable-5-1', effort: 'high', max_tokens: 6000 },
-    ask: { model: 'claude-fable-5-1', effort: 'medium', max_tokens: 4000 },
+    // Gabe (Oct 12): accuracy over cost; set it up for the best answers and trim later. High effort with room to think
+    // for plans and reviews (16000 was not enough: a high-effort build used it all on thinking). Questions stay at
+    // medium so an answer mid-workout comes back in seconds. All three are editable in the admin screen.
+    plan: { model: 'claude-fable-5-1', effort: 'high', max_tokens: 40000 },
+    review: { model: 'claude-fable-5-1', effort: 'high', max_tokens: 12000 },
+    ask: { model: 'claude-fable-5-1', effort: 'medium', max_tokens: 6000 },
   },
   prices: {
     'claude-fable-5-1': { in: 10, out: 50, cache_read: 0.25, cache_write: 12.5 },

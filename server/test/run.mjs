@@ -112,6 +112,12 @@ try {
   let job = await waitJob(mike, r.data.job.id);
   ok('plan job finishes with a checked plan and a code', job.status === 'done' && job.output.plan && job.output.plan.name === "Mike's plan" && job.output.code.startsWith('FP1.') && job.output.plan.days.length === 4, job);
   ok('plan job costs money and records tokens', job.cost_usd > 0.1 && job.tokens.in === 2600 && job.model === 'claude-fable-5-1' && job.effort === 'high', job);
+  const firstReq = mock.calls[mock.calls.length - 1];
+  ok('a first build is told to skip the log review and keep notes short', /do not review it/.test(firstReq.messages[0].content) && /120 words/.test(firstReq.messages[0].content) && firstReq.max_tokens === 40000);
+  r = await call('POST', '/coach/jobs', { kind: 'plan', intake: 'Name: Mike', currentPlan: job.output.plan, note: 'Swap leg press for hack squat', log: 'FitPitt log: leg press skipped twice' }, mike);
+  job = await waitJob(mike, r.data.job.id);
+  const changeReq = mock.calls[mock.calls.length - 1];
+  ok('a change starts from the current plan, uses the log and carries the note', job.status === 'done' && /^Change Mike's plan/.test(changeReq.messages[0].content) && /What they want changed: Swap leg press/.test(changeReq.messages[0].content) && /leg press skipped twice/.test(changeReq.messages[0].content) && job.output.text === 'Here is the plan.', changeReq.messages[0].content.slice(0, 200));
   const planCost = job.cost_usd;
   const n0 = mock.calls.length;
   r = await call('POST', '/coach/jobs', { kind: 'plan', intake: 'Name: Mike badplan' }, mike);
@@ -122,6 +128,9 @@ try {
   const prior = fixCall.messages[1];
   ok('calls are streamed, and the repair round hands back the whole assistant turn, thinking block and signature included',
     fixCall.stream === true && prior.role === 'assistant' && prior.content[0].type === 'thinking' && prior.content[0].signature === 'sig_test' && prior.content.some(c => c.type === 'tool_use' && c.input && c.input.days), prior.content.map(c => c.type));
+  r = await call('POST', '/coach/jobs', { kind: 'plan', intake: 'Name: Mike capped' }, mike);
+  job = await waitJob(mike, r.data.job.id);
+  ok('a plan cut off by the output cap says so, with the number', job.status === 'failed' && /ran out of room/.test(job.error) && /40000 output tokens/.test(job.error), job.error);
   r = await call('POST', '/coach/jobs', { kind: 'plan', intake: 'Name: Mike hopeless' }, mike);
   job = await waitJob(mike, r.data.job.id);
   ok('a plan that cannot be fixed fails with a reason', job.status === 'failed' && /could not fix/.test(job.error), job);

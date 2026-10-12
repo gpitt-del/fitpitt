@@ -195,6 +195,19 @@ async def main():
         ok('the coach got the youth rules for a kid, and not for Mike', 'under 18 and trains for a sport' in last['system'][0]['text'] and not any('under 18 and trains for a sport' in c['system'][0]['text'] for c in calls[:-1] if 'Build a FitPitt plan for Mike' in json.dumps(c['messages'])))
         await ctx_k.close()
 
+        # ---------- 3c. Change my plan: a note, the current plan and the log go to the coach; its notes show with the plan ----------
+        await mike.click('#tabs [data-tab="settings"]')
+        ok('on a personal plan, Settings offers Change my plan', await mike.locator('#fp-set [data-act="fpChange"]').count() == 1)
+        await mike.click('#fp-set [data-act="fpChange"]'); await wait_sheet(mike, 'Change my plan')
+        await mike.fill('#fp-change', 'Swap leg press for hack squat'); await mike.click('[data-act="fpChangeSend"]'); await wait_sheet(mike, 'Building your plan')
+        await wait_sheet(mike, "Mike's plan", 60000)
+        ok("the changed plan shows the coach's notes", 'From the coach' in await mike.inner_text('#sheet') and 'Here is the plan.' in await mike.inner_text('#sheet'))
+        calls = json.loads(urllib.request.urlopen('http://127.0.0.1:%d/__calls' % MOCK_PORT, timeout=10).read())['calls']
+        msg = calls[-1]['messages'][0]['content']
+        ok('the change request carries the note and the current plan', msg.startswith("Change Mike's plan") and 'Swap leg press for hack squat' in msg and 'Their current plan:' in msg, msg[:160])
+        await mike.click('#sheet .sheet-body [data-act="closeSheet"]')
+        await mike.click('#tabs [data-tab="today"]')
+
         # ---------- 4. A workout syncs to a second phone ----------
         await mike.click('[data-act="start"]'); await mike.wait_for_selector('#app .ex')
         ok('Ask the coach is on the workout screen', await mike.locator('[data-act="fpAsk"]').count() == 1)
@@ -278,7 +291,7 @@ async def main():
         await gabe.fill('#ad-flag', '5'); await gabe.select_option('#ad-e-ask', 'low'); await gabe.click('[data-act="adSave"]')
         await gabe.wait_for_function("document.querySelector('#toast') && document.querySelector('#toast').textContent === 'Saved.'")
         st, r = api('GET', '/admin/settings', token=gabe_token)
-        ok('settings saved from the admin screen', r['settings']['flag_usd'] == 5 and r['settings']['tasks']['ask']['effort'] == 'low', r['settings'])
+        ok('settings saved from the admin screen, max tokens included', r['settings']['flag_usd'] == 5 and r['settings']['tasks']['ask']['effort'] == 'low' and r['settings']['tasks']['plan']['max_tokens'] == 40000, r['settings'])
 
         # ---------- 8. Sign out, another person's code, and a closed account ----------
         st, r = api('POST', '/admin/people', {'name': 'Sarah'}, token=gabe_token); sarah_code = r['invite']['code']

@@ -187,7 +187,7 @@
   function checkJob() { const p = pending(); if (p && acct) { if (Date.now() - p.at > 30 * 60000) { setPending(null); return; } jobT0 = p.at; pollJob(p.id, p.kind); } }
   function showResult(j) {
     const o = j.output || {};
-    if (j.kind === 'plan' && o.plan) { closeSheet(); UI.previewPlan(o.plan, o.code, o.notes); toast(KIND_WORDS.plan[1]); return; }
+    if (j.kind === 'plan' && o.plan) { closeSheet(); UI.previewPlan(o.plan, o.code, o.notes, o.text); toast(KIND_WORDS.plan[1]); return; }
     const text = o.text || '';
     remember(j.kind, text);
     closeSheet(); if (j.kind === 'review') render();
@@ -205,8 +205,26 @@
     try {
       const r = await call('GET', '/coach/jobs?limit=20'), j = (r.jobs || []).find(x => x.kind === 'plan' && x.status === 'done' && x.output && x.output.plan);
       if (!j) { toast('The coach has not built a plan for you yet.'); return; }
-      UI.previewPlan(j.output.plan, j.output.code, j.output.notes);
+      UI.previewPlan(j.output.plan, j.output.code, j.output.notes, j.output.text);
     } catch (e) { busy(e); }
+  };
+
+  // Change my plan: a note on what to change; the coach starts from the current plan and the log (Gabe, Oct 12:
+  // flexible and adaptable, log reviews welcome after the first build). The intake answers on the phone go along.
+  ACT.fpChange = () => {
+    if (!signedIn()) { ACT.fpJoin(); return; }
+    openSheet('<h2>Change my plan</h2><p class="fp-lede">Say what you want different. The coach starts from your plan and your log, keeps what works, and shows what it changed.</p>' +
+      '<textarea id="fp-change" rows="4" maxlength="1000" placeholder="Swap leg press for hack squat. Shorter Wednesdays, 45 minutes. I keep skipping the calf raises, drop them or move them." style="margin-top:12px"></textarea>' +
+      '<div class="frm" style="margin-top:14px"><button class="btn primary" data-act="fpChangeSend">Ask for the change</button><button class="btn link" data-act="closeSheet">Cancel</button></div>');
+    const t = $('#fp-change'); if (t) t.focus();
+  };
+  ACT.fpChangeSend = () => {
+    const note = ($('#fp-change') ? $('#fp-change').value : '').trim(); if (!note) { toast('Say what you want changed first.'); return; }
+    tellIntake(); const d = UI.collectIntake();
+    if (!d) { toast('Answer the plan questions first; they go with the change.'); ACT.fpIntake(); return; }
+    const intake = UI.intakeText(d);
+    Cloud.put('intake/current', { text: intake, u: Date.now() });
+    startJob('plan', { intake, currentPlan: currentPlan(), log: liveSessions().length ? logText() : '', note }).catch(busy);
   };
 
   // Who is answering the intake: the account's name and, for a kid account, the sport-focused question set.
@@ -275,7 +293,13 @@
   ACT.fpSignOut = () => { confirmSheet('Sign out on this phone?', 'Your log stays on this phone and in your account. Sign in again with an invite code.', 'fpSignOutNow', 'Sign out'); };
   ACT.fpSignOutNow = () => { signOut(true); closeSheet(); toast('Signed out.'); };
 
+  function changeButton() {
+    if (!signedIn() || S.meta.program !== 'mine') return;
+    const b = app.querySelector('#fp-set [data-act="fpIntake"]'); if (!b || app.querySelector('[data-act="fpChange"]')) return;
+    const c = document.createElement('button'); c.className = 'btn quiet wide'; c.dataset.act = 'fpChange'; c.textContent = 'Change my plan'; b.before(c);
+  }
   function accountCard() {
+    changeButton();
     if (tab !== 'settings' || !S.meta.program || $('#fp-acct')) return;
     const anchor = $('#fp-set') || app.querySelector('.setting'); if (!anchor) return;
     const el = document.createElement('div'); el.className = 'setting'; el.id = 'fp-acct';
@@ -344,7 +368,9 @@
     h += '<div class="frm" style="margin-top:12px"><div class="two"><label><span>New person\'s first name</span><input class="input" id="ad-name" type="text" maxlength="40" autocomplete="off"></label><label><span>Kind</span><select id="ad-role"><option value="member">Adult</option><option value="kid">Kid (volleyball)</option></select></label></div><button class="btn small" data-act="adAdd">Add and make an invite</button></div>';
     h += '<div id="ad-invite"></div>';
     h += '<p class="fp-sub">Budget and models</p><div class="frm"><div class="two"><label><span>Flag over, $ a month</span><input class="input" id="ad-flag" type="text" inputmode="decimal" value="' + s.flag_usd + '"></label><label><span>Stop at, $ a month</span><input class="input" id="ad-stop" type="text" inputmode="decimal" value="' + s.stop_usd + '"></label><label><span>Ceiling for everyone, $</span><input class="input" id="ad-ceiling" type="text" inputmode="decimal" value="' + s.ceiling_usd + '"></label></div>' +
-      ['plan', 'review', 'ask'].map(k => '<div class="two"><label><span>' + { plan: 'Plan builds', review: 'Weekly reviews', ask: 'Questions' }[k] + ': model</span><input class="input" id="ad-m-' + k + '" type="text" value="' + esc(t[k].model) + '" autocapitalize="off" spellcheck="false"></label><label><span>Effort</span><select id="ad-e-' + k + '">' + ['low', 'medium', 'high', 'xhigh', 'max'].map(e => '<option' + (e === t[k].effort ? ' selected' : '') + '>' + e + '</option>').join('') + '</select></label></div>').join('') +
+      ['plan', 'review', 'ask'].map(k => '<div class="two"><label><span>' + { plan: 'Plan builds', review: 'Weekly reviews', ask: 'Questions' }[k] + ': model</span><input class="input" id="ad-m-' + k + '" type="text" value="' + esc(t[k].model) + '" autocapitalize="off" spellcheck="false"></label><label><span>Effort</span><select id="ad-e-' + k + '">' + ['low', 'medium', 'high', 'xhigh', 'max'].map(e => '<option' + (e === t[k].effort ? ' selected' : '') + '>' + e + '</option>').join('') + '</select></label></div>' +
+        '<label style="display:block;margin-top:8px"><span>Max output tokens (thinking counts; 500 to 64000)</span><input class="input" id="ad-t-' + k + '" type="text" inputmode="numeric" value="' + (t[k].max_tokens || '') + '"></label>').join('') +
+      '<p class="small muted" style="margin-top:10px">A plan build needs room for the thinking and the whole plan: 24000 at medium effort is a good default. The server gives one call about 14 minutes, so very large budgets at high effort can run out of time.</p>' +
       '<button class="btn small" data-act="adSave">Save settings</button></div>';
     h += '<div class="frm" style="margin-top:18px"><button class="btn quiet wide" data-act="adJobs">Recent coach calls</button><button class="btn link" data-act="closeSheet">Close</button></div>';
     openSheet(h);
@@ -379,7 +405,11 @@
     const g = id => num(($('#' + id) || {}).value || '');
     const patch = { flag_usd: g('ad-flag'), stop_usd: g('ad-stop'), ceiling_usd: g('ad-ceiling'), tasks: {} };
     for (const k of ['flag_usd', 'stop_usd', 'ceiling_usd']) if (patch[k] == null) { toast('Every amount needs a number.'); return; }
-    ['plan', 'review', 'ask'].forEach(k => { patch.tasks[k] = { model: ($('#ad-m-' + k) || {}).value, effort: ($('#ad-e-' + k) || {}).value }; });
+    for (const k of ['plan', 'review', 'ask']) {
+      const mt = Math.round(num(($('#ad-t-' + k) || {}).value || ''));
+      if (!(mt >= 500 && mt <= 64000)) { toast('Max output tokens: a number from 500 to 64000.'); return; }
+      patch.tasks[k] = { model: ($('#ad-m-' + k) || {}).value, effort: ($('#ad-e-' + k) || {}).value, max_tokens: mt };
+    }
     try { const r = await call('PUT', '/admin/settings', patch); ad.settings = r.settings; await refreshAdmin(); adminSheet(); toast('Saved.'); } catch (e) { toast(e.message); }
   };
   ACT.adJobs = async () => {

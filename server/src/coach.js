@@ -72,8 +72,14 @@ const lim = (s, n) => String(s == null ? '' : s).slice(0, n);
 export function userMessageFor(kind, input, person) {
   const name = person.name || 'the person';
   if (kind === 'plan') {
-    const lines = ['Build a FitPitt plan for ' + name + ' from these answers, then call submit_plan with it. Today is ' + new Date().toISOString().slice(0, 10) + '.', '', lim(input.intake, 6000)];
-    if (input.currentPlan) lines.push('', 'Their current plan, for continuity (keep exercise names the same where the lift stays the same, because history follows the name):', lim(JSON.stringify(input.currentPlan), 12000));
+    const today = 'Today is ' + new Date().toISOString().slice(0, 10) + '.';
+    const change = !!(input.currentPlan || input.note);
+    const lines = change
+      // A change to a plan they are already on: the log is the point here.
+      ? ['Change ' + name + "'s plan. Start from their current plan and keep what works; keep exercise names where the lift stays the same, because history follows the name. Use the log to see what they actually do and skip and how loads and reps are going, make the changes they asked for, and fix anything the log shows is not working. Then call submit_plan with the whole new plan. Add up to 150 words of notes to " + name + ' on what changed and why; the app shows them with the plan. ' + today, '', lim(input.intake, 6000)]
+      // A first build: no review of how they train (that is Review my week), or the plan never gets written.
+      : ['Build a FitPitt plan for ' + name + ' from these answers and call submit_plan with it. If a log is included, use it only for the exercises they do and their current loads; do not review it or comment on how they train, that is a separate task. You may add up to 120 words of notes to ' + name + ' about how the plan is shaped; the app shows them with the plan. ' + today, '', lim(input.intake, 6000)];
+    if (input.currentPlan) lines.push('', 'Their current plan:', lim(JSON.stringify(input.currentPlan), 12000));
     if (input.log) lines.push('', 'Their recent log:', lim(input.log, 12000));
     if (input.note) lines.push('', 'What they want changed: ' + lim(input.note, 1000));
     return lines.join('\n');
@@ -87,7 +93,7 @@ export function userMessageFor(kind, input, person) {
 
 export const TOOLS = [{ name: 'submit_plan', description: 'Submit the finished FitPitt plan. Call it exactly once, with every field filled.', strict: true, input_schema: PLAN_SCHEMA }];
 
-const CALL_LIMIT = 9.5 * 60 * 1000; // under the API's ten-minute limit for a non-streaming call
+const CALL_LIMIT = 13 * 60 * 1000; // streamed, so the API's own limit does not bite; the Durable Object alarm gets 15 minutes of wall time in all
 
 /** One call to the Messages API, streamed. Returns { message, usage, text, toolInput, stop }. Throws on network or API errors.
  *  Streamed because a plan with thinking can take minutes, and a reply held back until it is complete gets cut off by
@@ -201,7 +207,10 @@ export async function runJob(env, job, person, settings, memo, deadline) {
     // A plan: ask for the tool call, check the plan, and give the model one chance to fix problems.
     let r = await ask(0, Object.assign({}, base, { messages, tools: TOOLS, tool_choice: { type: 'auto' } }));
     for (let attempt = 0; attempt < 2; attempt++) {
-      if (!r.toolInput) throw fail('The coach did not submit a plan.' + (r.text ? ' It said: ' + r.text.slice(0, 300) : ''));
+      if (!r.toolInput) {
+        if (r.stop === 'max_tokens') throw fail('The coach ran out of room before it finished the plan (' + task.max_tokens + ' output tokens, thinking included). Raise max output tokens for plan builds or lower the effort in Settings → FitPitt admin.');
+        throw fail('The coach did not submit a plan.' + (r.text ? ' It said: ' + r.text.slice(0, 300) : ''));
+      }
       const c = check(tidy(r.toolInput));
       if (c.plan) return { output: { plan: c.plan, code: await encode(c.plan), notes: c.notes, text: r.text }, usages, model: task.model, effort: task.effort };
       if (attempt === 1) throw fail('The plan had problems the coach could not fix: ' + c.errs.slice(0, 4).join(' '));
