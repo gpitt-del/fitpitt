@@ -380,6 +380,11 @@ async def main():
         await page.wait_for_selector('#app .ex')
         w0 = await page.input_value('#app .set[data-ei="0"][data-si="0"] input[data-f="w"]')
         ok('the workout fills in the new weight', w0 == '140', w0)
+        await page.evaluate('window.scrollTo(0, 900)'); await page.wait_for_timeout(150)
+        pin = await page.evaluate("""() => { const b = document.querySelector('#brand').getBoundingClientRect(), w = document.querySelector('.wk-head').getBoundingClientRect();
+          return { brandTop: Math.round(b.top), brandH: Math.round(b.height), wkTop: Math.round(w.top), scrolled: scrollY, var: getComputedStyle(document.documentElement).getPropertyValue('--brand-h') }; }""")
+        ok('the brand bar stays pinned at the top mid-workout and the workout header sits under it', pin['scrolled'] > 500 and pin['brandTop'] == 0 and pin['brandH'] > 40 and abs(pin['wkTop'] - pin['brandH']) <= 1, pin)
+        await shot(page, '10b-pinned-brand')
         await ctx.close()
 
         # ---------- 7. Bad codes get plain reasons ----------

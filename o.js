@@ -28,6 +28,10 @@
     '.fp-fix summary{font-size:14px;color:var(--muted);cursor:pointer;margin-top:14px}' +
     '.fp-coach{padding:10px 12px;border-left:3px solid var(--day);font-size:15px;line-height:1.45}' +
     '.brand-who{opacity:.8;font-size:14px}' +
+    // The brand bar (name, version, quote) stays pinned at the top of every screen (Gabe, Oct 12). It takes over the
+    // safe-area padding from body, and the workout header sticks just under it (--brand-h is measured below).
+    'body{padding-top:0}#brand{position:sticky;top:0;z-index:6;background:var(--bg);padding-top:calc(env(safe-area-inset-top,0px) + 10px);padding-bottom:8px;border-bottom:1px solid var(--line)}' +
+    '.wk-head{top:var(--brand-h,env(safe-area-inset-top,0px))}html{scroll-padding-top:var(--brand-h,env(safe-area-inset-top,0px))}' +
     '.fp-warm{margin:10px 0 14px;padding:8px 12px;border-left:3px solid var(--day);font-size:15px;line-height:1.45}.fp-warm summary{font-weight:700;cursor:pointer}.fp-warm ol{margin:6px 0 0;padding-left:20px}.fp-warm li{margin:3px 0}' +
     '.fp-warm-pv{font-size:14px;color:var(--muted);margin:2px 0 12px}' +
     '.fp-tip{display:block;width:100%;margin-top:12px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface);text-align:left;font-size:14px;line-height:1.4;color:var(--ink)}.fp-tip-l{display:block;font:700 12px/1.2 var(--fc);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:4px}';
@@ -390,7 +394,10 @@
     el.querySelector('summary').addEventListener('click', () => { warmOpen = !el.open; });
     eff.after(el);
   }
-  const onRender = () => { settingsCard(); relabel(); fitDays(); tipCard(); warmCard(); };
+  function measureBrand() { const b = $('#brand'); if (!b) return; document.documentElement.style.setProperty('--brand-h', b.getBoundingClientRect().height + 'px'); }
+  if (window.ResizeObserver && $('#brand')) new ResizeObserver(measureBrand).observe($('#brand')); else window.addEventListener('resize', measureBrand);
+  measureBrand();
+  const onRender = () => { settingsCard(); relabel(); fitDays(); tipCard(); warmCard(); measureBrand(); };
   new MutationObserver(onRender).observe(app, { childList: true });
 
   /* ---------- backups carry the plan; erasing removes it ---------- */
