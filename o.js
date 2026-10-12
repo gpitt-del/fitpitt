@@ -27,7 +27,8 @@
     '.fp-sub{font:700 20px/1.2 var(--fc);margin:22px 0 8px}.pick + .fp-sub{margin-top:26px}' +
     '.fp-fix summary{font-size:14px;color:var(--muted);cursor:pointer;margin-top:14px}' +
     '.fp-coach{padding:10px 12px;border-left:3px solid var(--day);font-size:15px;line-height:1.45}' +
-    '.brand-who{white-space:nowrap;opacity:.8;font-size:14px}';
+    '.brand-who{white-space:nowrap;opacity:.8;font-size:14px}' +
+    '.fp-tip{display:block;width:100%;margin-top:12px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface);text-align:left;font-size:14px;line-height:1.4;color:var(--ink)}.fp-tip-l{display:block;font:700 12px/1.2 var(--fc);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:4px}';
   document.head.appendChild(css);
 
   /* ---------- the quote in the brand bar: one a day, tap for the next (Gabe, Oct 12: famous or fit people) ---------- */
@@ -57,6 +58,48 @@
   function showQuote() { const el = $('#brand-q'); if (!el) return; const q = QUOTES[quoteAt]; el.innerHTML = '“' + esc(q[0]) + '” <span class="brand-who">— ' + esc(q[1]) + '</span>'; }
   ACT.fpQuote = () => { quoteAt = (quoteAt + 1) % QUOTES.length; showQuote(); };
   showQuote();
+
+  /* ---------- tip of the day on the Today screen (Gabe, Oct 12): one a day, tap for the next ---------- */
+  const TIPS = [
+    'Keep the lights low for the last hour before bed and the room dark and cool. Bright light at night pushes your body clock later.',
+    'Daylight within an hour of waking sets your sleep clock better than anything you do at night.',
+    'Hit your protein total for the day first; then spread it over three or four meals of 25 to 40 g each.',
+    'Creatine monohydrate for adults: 3 to 5 g a day, any time, every day. The most studied supplement there is, and no loading phase needed.',
+    'Caffeine has a half-life of about five hours. A 3 pm coffee is still a quarter there at 1 am.',
+    'The Norwegian 4x4: four minutes hard (about 90% of max heart rate), three minutes easy, four times. One session a week moves your VO2max.',
+    'Zone 2 is a pace you could hold a conversation at. Two to three hours a week of it is the base everything else sits on.',
+    'Warm up with the first exercise itself: two light sets, then the working weight. It beats ten minutes of stretching.',
+    'Stretching before lifting does not prevent injury; getting the movement warm does. Long stretches go after the session.',
+    'Walk after meals. Ten minutes right after eating lowers blood sugar more than the same ten minutes at any other time.',
+    'Water: pale-yellow urine is the target. On long sweaty days add salt, not just water.',
+    'Alcohol in the evening cuts deep sleep. The earlier and the less, the better the night.',
+    'Rest two to three minutes between hard sets of the big lifts. Short rests cut the reps you can do and the muscle you build.',
+    'Soreness is not the measure of a good workout. Progress in the log is.',
+    'Two reps short of failure on most sets and the last set to failure is where growth and recovery balance.',
+    'Grip strength tracks with how long people live. Deadlifts, rows and carries train it for free.',
+    'A deload week is part of the plan, not a break from it. The lighter week is when the heavy ones pay off.',
+    'Steps count: 7,000 to 8,000 a day is where most of the health benefit sits. More is fine.',
+    'Eat the protein on your plate first. It fills you up and steadies blood sugar.',
+    'Vitamin D runs low in winter for most people. The blood test is cheap and so is the supplement.',
+    'Screens before bed: what you read keeps you up more than the light does. Both matter.',
+    'Keep the same wake time every day, weekends included. It does more for sleep than any supplement.',
+    'Hard cardio and hard lifting on the same day: lift first, or keep six hours between them.',
+    'Kids and lifting: strength training does not stunt growth. Bad technique without supervision does the damage, not the lifting.',
+    'Sunscreen is the cheapest anti-aging product there is: face, neck and the backs of the hands.',
+    'Fiber: 25 to 35 g a day from beans, oats, fruit and vegetables. Most people get half that.',
+    'A short walk the morning after a hard session clears soreness faster than staying still.',
+    'Breathe out on the effort, in on the way down. Holding your breath spikes blood pressure.',
+    'Sleep is when muscle is built. Seven to nine hours; the lifting is only the signal.',
+    'Hydrate before you train: a big glass of water an hour before, not a litre during.',
+  ];
+  let tipAt = (Math.floor(Date.now() / 86400000) + 7) % TIPS.length;
+  function tipCard() {
+    if (tab !== 'today' || S.active) return;
+    let el = app.querySelector('.fp-tip');
+    if (!el) { const after = app.querySelector('.dayswitch') || app.querySelector('[data-act="start"]'); if (!after) return; el = document.createElement('button'); el.className = 'fp-tip'; el.dataset.act = 'fpTip'; el.setAttribute('aria-label', 'Next tip'); after.after(el); }
+    el.innerHTML = '<span class="fp-tip-l">Tip of the day</span>' + esc(TIPS[tipAt]);
+  }
+  ACT.fpTip = () => { tipAt = (tipAt + 1) % TIPS.length; tipCard(); };
 
   /* ---------- small helpers ---------- */
   const inIosBrowser = () => navigator.standalone === false; // iPhone Safari, not the copy on the Home Screen
@@ -315,7 +358,7 @@
   // A friend sends the log summary to Gabe, who pastes it into Claude.
   function relabel() { if (S.meta.program !== 'mine') return; const b = app.querySelector('[data-act="coachShare"]'); if (b && !b.dataset.fp) { b.dataset.fp = '1'; b.textContent = 'Send my log to ' + ADMIN + ' for a review'; } }
   function fitDays() { const ds = app.querySelector('.dayswitch'); if (!ds) return; const n = ds.children.length; [4, 5, 6].forEach(k => ds.classList.toggle('fp-n' + k, n === k)); }
-  const onRender = () => { settingsCard(); relabel(); fitDays(); };
+  const onRender = () => { settingsCard(); relabel(); fitDays(); tipCard(); };
   new MutationObserver(onRender).observe(app, { childList: true });
 
   /* ---------- backups carry the plan; erasing removes it ---------- */
@@ -351,7 +394,7 @@
   }
   window.addEventListener('hashchange', fromLink); // a link opened in a page that already shows FitPitt
   // Used by the account add-on (p.js), which builds plans through the coach instead of a text to Gabe.
-  window.FP_UI = { openText, collectIntake, intakeText, previewPlan(plan, code, notes, text) { pend = { plan, code: code || '', notes: notes || [], text: String(text || '').trim().slice(0, 1500) }; previewSheet(); }, intakeSheet,
+  window.FP_UI = { openText, collectIntake, intakeText, pending: () => (pend ? pend.plan : null), reopen() { if (pend) previewSheet(); else closeSheet(); }, previewPlan(plan, code, notes, text) { pend = { plan, code: code || '', notes: notes || [], text: String(text || '').trim().slice(0, 1500) }; previewSheet(); }, intakeSheet,
     intakeWho(w) { who = { name: String((w && w.name) || '').slice(0, 30), kind: w && w.kind === 'kid' ? 'kid' : 'adult' }; } };
   fromLink();
   onRender();

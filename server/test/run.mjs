@@ -155,6 +155,7 @@ try {
   const askReq = mock.calls[mock.calls.length - 1];
   ok('requests use adaptive thinking (no thinking field), effort in output_config, cached system prompt', !('thinking' in askReq) && askReq.output_config.effort === 'medium' && askReq.system[0].cache_control.type === 'ephemeral');
   ok("an adult's prompt has no youth rules", !askReq.system[0].text.includes('under 18 and trains for a sport'));
+  ok('the coach may answer supplement, hormone and medical questions as information, never with "I\'m not a doctor"', /Supplements \(creatine/.test(askReq.system[0].text) && /information, not medical advice/.test(askReq.system[0].text) && /do not refuse/.test(askReq.system[0].text) && !/Training only\. Never give/.test(askReq.system[0].text));
   r = await call('POST', '/admin/people', { name: 'Anderson', role: 'kid' }, gabe);
   const kidInv = r.data.invite.code;
   r = await call('POST', '/join', { code: kidInv, device: 'kid phone' });
@@ -163,6 +164,7 @@ try {
   job = await waitJob(kid, r.data.job.id);
   const kidReq = mock.calls[mock.calls.length - 1];
   ok("a kid's plan is built with the youth rules in the system prompt", job.status === 'done' && kidReq.system[0].text.includes('under 18 and trains for a sport') && kidReq.system[0].text.includes('Max efforts are allowed'), job.status);
+  ok("a kid's coach keeps nutrition to food, protein, hydration and sleep", /question for their parents/.test(kidReq.system[0].text));
   r = await call('POST', '/coach/jobs', { kind: 'ask', question: 'please refuse this', context: '' }, mike);
   job = await waitJob(mike, r.data.job.id);
   ok('an API refusal fails cleanly without retries', job.status === 'failed' && job.attempts === 1 && /refused by the stand-in/.test(job.error), job);

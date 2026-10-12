@@ -244,7 +244,7 @@
   };
   ACT.fpAsk = () => {
     const last = lastOf('ask');
-    openSheet('<h2>Ask the coach</h2><p class="fp-lede">Training questions only: loads, reps, swaps, soreness, what to do today. Not medical advice.</p>' +
+    openSheet('<h2>Ask the coach</h2><p class="fp-lede">Training, cardio, food, sleep, supplements, what to do today. On drugs, hormones or conditions the coach gives information, not medical advice.</p>' +
       '<textarea id="fp-q" rows="3" maxlength="1000" placeholder="My right knee feels fine but the left one aches on lunges. What should I do today?" style="margin-top:12px"></textarea>' +
       '<div class="frm" style="margin-top:14px"><button class="btn primary" data-act="fpAskSend">Ask</button><button class="btn link" data-act="closeSheet">Cancel</button></div>' +
       (last ? '<p class="fp-sub">Last answer</p><div class="fp-answer small">' + esc(last.text).replace(/\n/g, '<br>') + '</div>' : ''));
@@ -326,7 +326,29 @@
       const lede = body.querySelector('.fp-lede'); if (lede && !lede.dataset.fp) { lede.dataset.fp = '1'; lede.textContent = signedIn() ? 'The coach builds a plan around the exercises you already do. Answer these, then tap Build my plan.' : 'The coach builds a plan around the exercises you already do. Answer these, then sign in with your invite code.'; }
       const b = body.querySelector('[data-act="fpSendIntake"]'); const want = signedIn() ? 'Build my plan' : 'Save my answers'; if (b && b.textContent !== want) b.textContent = want;
     }
+    // A plan preview gets a way to send comments back before it is used (Gabe, Oct 12: "overall comments to refine the plan").
+    const use = body.querySelector('[data-act="fpUse"]');
+    if (use && signedIn() && UI.pending() && !body.querySelector('[data-act="fpRefine"]')) {
+      const r = document.createElement('button'); r.className = 'btn quiet wide'; r.dataset.act = 'fpRefine'; r.textContent = 'Ask the coach to change it'; r.style.marginBottom = '10px';
+      use.before(r);
+    }
   }
+  // Refine the plan on screen: comments go to the coach with that plan, and a new preview comes back.
+  ACT.fpRefine = () => {
+    const plan = UI.pending(); if (!plan) return;
+    openSheet('<h2>Change this plan</h2><p class="fp-lede">Say what to change or clear up, as many things as you like. The coach reworks the plan and shows it again.</p>' +
+      '<textarea id="fp-refine" rows="5" maxlength="1000" placeholder="My gym has no hack squat machine. Make day C a leg press day. Drop the legs priority, I want lean muscle all over. Keep Pilates on Sundays." style="margin-top:12px"></textarea>' +
+      '<div class="frm" style="margin-top:14px"><button class="btn primary" data-act="fpRefineSend">Send to the coach</button><button class="btn link" data-act="fpRefineBack">Back to the plan</button></div>');
+    const t = $('#fp-refine'); if (t) t.focus();
+  };
+  ACT.fpRefineBack = () => UI.reopen();
+  ACT.fpRefineSend = () => {
+    const note = ($('#fp-refine') ? $('#fp-refine').value : '').trim(); if (!note) { toast('Say what to change first.'); return; }
+    const plan = UI.pending(); if (!plan) return;
+    tellIntake(); const d = UI.collectIntake();
+    const intake = d ? UI.intakeText(d) : 'See the plan and the comments.';
+    startJob('plan', { intake, currentPlan: plan, log: liveSessions().length ? logText() : '', note }).catch(busy);
+  };
   function buttons() {
     if (!signedIn()) {
       // Signed out on a personal plan, Progress would offer to text the log to Gabe (o.js). Nothing is texted: ask them to sign in instead.
@@ -426,7 +448,7 @@
   ACT.adJobs = async () => {
     try {
       const r = await call('GET', '/admin/jobs?limit=30');
-      openSheet('<h2>Recent coach calls</h2><ul class="list">' + r.jobs.map(j => '<li><div class="l-top"><strong>' + esc(j.person_name || '?') + ' · ' + j.kind + '</strong><span class="small muted">' + money(j.cost_usd) + '</span></div><div class="l-sub">' + fmtDate(new Date(j.created), true) + ' · ' + j.status + (j.error ? ' · ' + esc(j.error) : '') + ' · ' + (j.model || '') + (j.effort ? ' ' + j.effort : '') + ' · ' + (j.tokens.in + j.tokens.cache_read + j.tokens.cache_write) + ' in, ' + j.tokens.out + ' out</div></li>').join('') + '</ul><div class="frm" style="margin-top:16px"><button class="btn link" data-act="adBack">Back</button></div>');
+      openSheet('<h2>Recent coach calls</h2><ul class="list">' + r.jobs.map(j => '<li><div class="l-top"><strong>' + esc(j.person_name || '?') + ' · ' + j.kind + '</strong><span class="small muted">' + money(j.cost_usd) + '</span></div><div class="l-sub">' + fmtDate(new Date(j.created), true) + ' · ' + j.status + (j.started && j.finished ? ' · ran ' + Math.max(1, Math.round((j.finished - j.started) / 60000)) + ' min' : '') + (j.error ? ' · ' + esc(j.error) : '') + ' · ' + (j.model || '') + (j.effort ? ' ' + j.effort : '') + ' · ' + (j.tokens.in + j.tokens.cache_read + j.tokens.cache_write) + ' in, ' + j.tokens.out + ' out</div></li>').join('') + '</ul><div class="frm" style="margin-top:16px"><button class="btn link" data-act="adBack">Back</button></div>');
     } catch (e) { toast(e.message); }
   };
   async function refreshAdmin() { const p = await call('GET', '/admin/people'); ad.people = p.people; ad.totals = p.totals; ad.month = p.month; }

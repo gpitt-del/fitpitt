@@ -250,8 +250,13 @@ async def main():
         ok("copy this plan's code", (await page.evaluate('window.__copied'))[-1] == app_code)
         # A workout on day A
         await page.click('#tabs [data-tab="today"]')
+        tip1 = await page.inner_text('#app .fp-tip')
+        ok('Today shows a tip of the day', tip1.lower().startswith('tip of the day') and len(tip1) > 40, tip1)
+        await page.click('#app .fp-tip'); tip2 = await page.inner_text('#app .fp-tip')
+        ok('tapping the tip shows the next one', tip1 != tip2, (tip1[:40], tip2[:40]))
         await page.click('[data-act="start"]')
         await page.wait_for_selector('#app .ex')
+        ok('no tip inside a workout', await page.locator('#app .fp-tip').count() == 0)
         ok('workout has 7 exercises', await page.locator('#app .ex').count() == 7)
         await shot(page, '09-workout')
         await fill_workout(page, reps_for=lambda ei: 10)

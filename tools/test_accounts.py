@@ -159,6 +159,18 @@ async def main():
         await wait_sheet(mike, "Mike's plan", 60000)
         ok('the plan comes back in the usual preview', await mike.locator('#sheet .menu h3').count() == 4 and 'Made for Mike' in await mike.inner_text('#sheet'))
         await shot(mike, 'a5-plan-preview')
+        # comments before using it: the coach reworks the plan and a new preview comes back
+        ok('the preview offers to send comments to the coach', await mike.locator('#sheet [data-act="fpRefine"]').count() == 1)
+        await mike.click('#sheet [data-act="fpRefine"]'); await wait_sheet(mike, 'Change this plan')
+        await mike.click('[data-act="fpRefineBack"]'); await wait_sheet(mike, "Mike's plan")
+        ok('Back returns to the same preview', await mike.locator('#sheet [data-act="fpUse"]').count() == 1)
+        await mike.click('#sheet [data-act="fpRefine"]'); await wait_sheet(mike, 'Change this plan')
+        await mike.fill('#fp-refine', 'No hack squat machine at my gym'); await mike.click('[data-act="fpRefineSend"]'); await wait_sheet(mike, 'Building your plan')
+        await wait_sheet(mike, "Mike's plan", 60000)
+        calls = json.loads(urllib.request.urlopen('http://127.0.0.1:%d/__calls' % MOCK_PORT, timeout=10).read())['calls']
+        msg = calls[-1]['messages'][0]['content']
+        ok('the comments go to the coach with the previewed plan', msg.startswith("Change Mike's plan") and 'No hack squat machine' in msg and 'Their current plan:' in msg and "Mike's plan" in msg, msg[:200])
+        ok('and a new preview comes back', await mike.locator('#sheet [data-act="fpUse"]').count() == 1 and 'From the coach' in await mike.inner_text('#sheet'))
         async with mike.expect_navigation():
             await mike.click('[data-act="fpUse"]')
         await mike.wait_for_selector('#app .hero h1')
