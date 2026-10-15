@@ -207,6 +207,7 @@
     hipthrust: ['Hip thrust', 'Machine hip thrust'],
   };
   const SKOF = {}; Object.keys(GROUPS).forEach(k => GROUPS[k].forEach(n => { SKOF[n] = k; }));
+  window.FP_SKOF = SKOF; // q.js swaps the sketch for a rendered picture where one exists
   const css = document.createElement('style');
   css.textContent = '.sk{display:block;width:100%;height:auto;margin:2px 0 12px;background:var(--surface);border:1px solid var(--line);border-radius:10px}.sk.one{width:54%}' +
     '.sk-f{stroke:var(--ink);stroke-width:2.8;stroke-linecap:round;fill:none}.sk-h{fill:var(--surface);stroke:var(--ink);stroke-width:2.6}.sk-p{stroke:var(--muted);stroke-width:1.8;stroke-linecap:round;fill:none}' +

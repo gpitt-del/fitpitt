@@ -385,6 +385,23 @@ async def main():
           return { brandTop: Math.round(b.top), brandH: Math.round(b.height), wkTop: Math.round(w.top), scrolled: scrollY, var: getComputedStyle(document.documentElement).getPropertyValue('--brand-h') }; }""")
         ok('the brand bar stays pinned at the top mid-workout and the workout header sits under it', pin['scrolled'] > 500 and pin['brandTop'] == 0 and pin['brandH'] > 40 and abs(pin['wkTop'] - pin['brandH']) <= 1, pin)
         await shot(page, '10b-pinned-brand')
+        # Exercise pictures (q.js): a rendered picture where one exists, the h.js sketch where not; the three lists agree.
+        await page.evaluate('window.scrollTo(0, 0)')
+        await page.click('.how[data-name="Barbell bench press"]')
+        await page.wait_for_selector('.sheet-body .sk-img')
+        pic = await page.evaluate("""() => { const b = document.querySelector('.sheet-body'), i = b.querySelector('.sk-img'); return { src: i.getAttribute('src'), loaded: i.complete && i.naturalWidth, sketch: !!b.querySelector('.sk'), w: i.getBoundingClientRect().width }; }""")
+        ok('the how-to sheet shows the rendered picture for a bench press and no sketch', pic['src'] == 'img/bench.webp' and pic['loaded'] and not pic['sketch'] and pic['w'] > 200, pic)
+        await shot(page, '10c-howto-picture')
+        await page.click('.sheet-body [data-act="closeSheet"]')
+        await page.click('.how[data-name="Seated cable row"]')
+        await page.wait_for_selector('.sheet-body .sk')
+        ok('an exercise with no picture yet keeps its sketch', await page.evaluate("!document.querySelector('.sheet-body .sk-img') && !!document.querySelector('.sheet-body .sk')"))
+        await page.click('.sheet-body [data-act="closeSheet"]')
+        q_pics = set(re.findall(r"'([a-z0-9_]+)'", re.search(r'const PICS = \[(.*?)\];', (ROOT / 'q.js').read_text(), re.S).group(1)))
+        sw_pics = set(re.findall(r"'([a-z0-9_]+)'", re.search(r'const PICS = \[(.*?)\];', (ROOT / 'sw.js').read_text(), re.S).group(1)))
+        files = set(p.stem for p in (ROOT / 'img').glob('*.webp'))
+        ok('q.js, sw.js and the img folder list the same pictures', q_pics == sw_pics == files and len(files) >= 60, (len(q_pics), len(sw_pics), len(files), q_pics ^ files, sw_pics ^ files))
+        ok('every picture is small enough for the offline cache', all(p.stat().st_size < 60000 for p in (ROOT / 'img').glob('*.webp')), max(p.stat().st_size for p in (ROOT / 'img').glob('*.webp')))
         await ctx.close()
 
         # ---------- 7. Bad codes get plain reasons ----------
