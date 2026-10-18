@@ -75,6 +75,8 @@ function exOf(e, at, errs, notes) {
   const cue = clean(e.cue, 160); if (cue) x.cue = cue;
   if (flag(e.hold)) x.hold = true;
   else ['drop', 'partials', 'bw'].forEach(k => { if (flag(e[k])) x[k] = true; });
+  if (!x.hold && (e.rp === true || e.rp === false)) x.rp = e.rp;
+  else if (x.hold && flag(e.rp)) notes.push(label + ': a hold cannot be rest-pause, so rp was left off.');
   if (['leg', 'side', 'arm'].includes(e.per)) x.per = e.per;
   else if (e.per) notes.push(label + ': "per" can be leg, side or arm. It was left off.');
   return x;
@@ -98,10 +100,11 @@ const exerciseSchema = {
     reps: { type: 'array', items: { type: 'integer' }, description: 'Exactly two numbers, [low, high], low at most high, up to 100. Seconds for a hold, up to 600.' },
     rest: { type: 'string', enum: ['long', 'short'], description: 'long = 2 to 3 minutes (compound lifts), short = 60 to 90 seconds.' },
     cue: { type: 'string', description: 'One form cue, up to 160 characters, or an empty string: position, path, what to feel, what to avoid. No weights, rep counts or set structure; the app sets the load.' },
+    rp: { type: 'boolean', description: 'Rest-pause: true runs the exercise as ONE set to failure, then `sets` mini-sets to failure with 20 seconds between them; false runs `sets` straight sets with the rest given. Heavy barbell and dumbbell compounds go first in the day as straight sets. Always false for a hold.' },
     drop: { type: 'boolean' }, partials: { type: 'boolean' }, bw: { type: 'boolean' }, hold: { type: 'boolean' },
     per: { type: 'string', enum: ['', 'leg', 'side', 'arm'] },
   },
-  required: ['name', 'g', 'sets', 'reps', 'rest', 'cue', 'drop', 'partials', 'bw', 'hold', 'per'],
+  required: ['name', 'g', 'sets', 'reps', 'rest', 'cue', 'rp', 'drop', 'partials', 'bw', 'hold', 'per'],
   additionalProperties: false,
 };
 export const PLAN_SCHEMA = {
@@ -135,11 +138,12 @@ export const PLAN_SCHEMA = {
   required: ['fitpitt', 'name', 'for', 'made', 'goal', 'line', 'perWeek', 'measure', 'effort', 'deload', 'rules', 'days'],
   additionalProperties: false,
 };
-// The model fills every field (strict mode needs that). Empty strings and false flags mean "left out".
+// The model fills every field (strict mode needs that). Empty strings and false flags mean "left out", except rp, where false is a choice.
 export function tidy(raw) {
   if (!raw || typeof raw !== 'object') return raw;
   const out = {};
   for (const [k, v] of Object.entries(raw)) {
+    if (k === 'rp' && (v === true || v === false)) { out.rp = v; continue; } // false means straight sets, not "left out"
     if (v === '' || v === false || v == null) continue;
     if (k === 'days' && Array.isArray(v)) out.days = v.map(d => d && typeof d === 'object' ? Object.assign({}, d, { ex: Array.isArray(d.ex) ? d.ex.map(tidy) : d.ex }) : d);
     else out[k] = v;

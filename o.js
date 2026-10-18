@@ -119,7 +119,7 @@
   const inIosBrowser = () => navigator.standalone === false; // iPhone Safari, not the copy on the Home Screen
   const madeLine = pl => (pl.for ? 'Made for ' + pl.for : 'Made for you') + (pl.made ? ' on ' + fmtDate(parseYmd(pl.made), true) : '') + '.';
   const boldEsc = s => esc(s).replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>').replace(/\*/g, '');
-  const target = s => s.sets + ' × ' + (s.lo === s.hi ? s.lo : s.lo + '–' + s.hi) + (s.unit === 'sec' ? ' sec' : '') + (s.per ? ' per ' + s.per : '');
+  const target = s => (s.rp ? '1 × ' : s.sets + ' × ') + (s.lo === s.hi ? s.lo : s.lo + '–' + s.hi) + (s.unit === 'sec' ? ' sec' : '') + (s.per ? ' per ' + s.per : '') + (s.rp ? ' + ' + s.sets + ' mini' : '');
   const flash = msg => { try { sessionStorage.setItem(FLASH, msg); } catch (e) { /* the toast is only a nicety */ } };
   function copySheet(title, lede, text) {
     openSheet('<h2>' + esc(title) + '</h2><p class="small muted">' + esc(lede) + '</p><textarea class="fp-code" id="fp-copybox" rows="8" readonly style="margin-top:12px"></textarea>' +
@@ -160,7 +160,8 @@
       { k: 'sport', t: 'text', label: 'Sport and position, if you train for one', max: 120, ph: SPORT_PH } ] },
     { title: 'Your week', fields: [
       { k: 'days', t: 'chips', label: 'Days a week you can train', req: 1, opts: ['2', '3', '4', '5', '6', '7'] },
-      { k: 'mins', t: 'chips', label: 'Time for each session', req: 1, opts: ['30 min', '45 min', '60 min', '75 min', '90 min'] } ] },
+      { k: 'mins', t: 'chips', label: 'Time for each session', req: 1, opts: ['30 min', '45 min', '60 min', '75 min', '90 min'] },
+      { k: 'pace', t: 'chips', label: 'How you like a session', opts: ['Quick: short rests, mini-sets after the heavy lifts', 'Full rests, straight sets', "Coach's call"] } ] },
     { title: 'Where you train', fields: [
       { k: 'where', t: 'chips', label: 'Place', req: 1, opts: ['Full gym', 'Home, with dumbbells', 'Home, little or no equipment'] },
       { k: 'equip', t: 'text', label: 'Equipment worth knowing about', max: 300, ph: 'Dumbbells to 50 lb, a bench, a pull-up bar, bands' } ] },
@@ -240,7 +241,7 @@
     } else {
       L.push('FitPitt plan request', 'Name: ' + d.name, 'Goal: ' + d.goal + (d.goalText ? '. Details: ' + d.goalText : ''));
       if (d.sport) L.push('Sport and position: ' + d.sport);
-      L.push('Days a week: ' + d.days + ', about ' + d.mins + ' each', 'Where: ' + d.where + (d.equip ? '. Equipment: ' + d.equip : ''), 'Experience: ' + d.exp,
+      L.push('Days a week: ' + d.days + ', about ' + d.mins + ' each' + (d.pace ? '. Session style: ' + d.pace : ''), 'Where: ' + d.where + (d.equip ? '. Equipment: ' + d.equip : ''), 'Experience: ' + d.exp,
         'Does now and likes: ' + d.likes, 'Injuries, pain or exercises to avoid: ' + d.limits);
       if (as) L.push(as);
     }

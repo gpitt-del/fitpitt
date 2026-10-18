@@ -11,13 +11,13 @@ FitPitt is a phone workout log (a home-screen web app) at https://gpitt-del.gith
 - Personal plans: `n.js` is the model (checking, codes, turning a plan into the program key `"mine"`); `o.js` has the screens (intake, paste a code, preview, Settings card, backups that carry the plan). The intake is five blocks for adults and five sport-focused blocks for kids (`ADULT` and `KID` in o.js); p.js picks the set by the account's role and supplies the name. The plan format is checked the same way by `tools/plancode.py`; if the format changes, change both.
 
 ## Testing and releasing
-- `python3 tools/test_personal_plans.py [screenshot folder]` runs 123 end-to-end checks in simulated phones (Playwright, headless Chromium). It runs with the API address index.html ships, so a signed-out phone saves intake answers instead of texting them; `tools/test_accounts.py` covers the signed-in paths against a local Worker and a stand-in Claude.
+- `python3 tools/test_personal_plans.py [screenshot folder]` runs 127 end-to-end checks in simulated phones (Playwright, headless Chromium). It runs with the API address index.html ships, so a signed-out phone saves intake answers instead of texting them; `tools/test_accounts.py` covers the signed-in paths against a local Worker and a stand-in Claude.
 - `python3 tools/test_update.py <previous release ref>` installs that release in a simulated phone, switches to this tree, and checks one reload brings the update, keeps the log, and works offline.
 - A push to `gh-pages` is a release; Pages rebuilds in about 30 seconds. After pushing, compare the pushed files with the tested ones and check the Pages run finished.
 - Push work in progress to a branch early. A whole build of personal plans was once lost because it lived only in a session that ended.
 
 ## Where things stand (Oct 11 2026)
-- Personal plans, accounts, sync and the coach are built and tested (tools/test_personal_plans.py 123 checks,
+- Personal plans, accounts, sync and the coach are built and tested (tools/test_personal_plans.py 127 checks,
   tools/test_accounts.py 56, server/test/run.mjs 70, tools/test_update.py 9 or 10).
 - The Worker is deployed at https://fitpitt-api.fitpitt-api.workers.dev (Gabe's personal Cloudflare account, free plan,
   D1 database `fitpitt`), and index.html's `fitpitt-api` meta tag points at it. The release to `gh-pages` is the merge
@@ -69,13 +69,17 @@ FitPitt is a phone workout log (a home-screen web app) at https://gpitt-del.gith
 - **Workout screen (Gabe, Oct 13, built as v27):** the app's target and the coach's cue are two labelled lines, "Target:"
   and "Form:", and the coach is told cues carry no loads or rep counts. The rest beside the sets is the one number the
   stopwatch is measured against. A weight jump after a first set far past the range is sized from the Epley rep-max
-  estimate (i.js `sized`), never less than a normal step, never more than 20%. Rest-pause is the default session
-  style on the site (Gabe, Oct 18: shorter sessions, same growth): heavy free-weight lifts first as straight sets with
-  rest held to 2 minutes, machine/cable/bodyweight work after as one set plus mini-sets. Phones from before move to it
-  once on their first load after v27 (`styleV` marks a style that is settled); a style chosen in Settings is kept. It
-  applies to coach-built plans too; the phone sends `style` with plan and review jobs and coach.js tells the coach what
-  the app does with it and to put the long-rest lifts first (STYLE_RP). The mock Claude in server/test keys on the
-  words badplan, capped, hopeless, refuse and stall anywhere in the prompt: keep them out of prompt text.
+  estimate (i.js `sized`), never less than a normal step, never more than 20%.
+- **Session structure is the coach's call, per exercise (Gabe, Oct 18: the app does not dictate):** each exercise in a
+  plan carries `rp` (true = one set to failure then `sets` mini-sets on a 20 s rest; false = straight sets). The intake
+  asks "How you like a session" (Quick / Full rests / Coach's call) and the guide tells the coach to put the heavy
+  compounds first as straight sets so strength shows in the log, with rest-pause on the machine, cable, isolation and
+  bodyweight work after them when the person wants quick sessions. A plan with `rp` on every exercise is `structured`
+  (n.js) and runs as written: `rpMode()` is off for it and Settings points to Change my plan instead of the style chips.
+  plan.js `tidy` keeps `rp: false` (every other false flag means "left out"). Plans from before (no `rp`) and the
+  ready-made plans follow the Settings session style, whose default for a new phone is rest-pause; a phone keeps the
+  style it has. The mock Claude in server/test keys on the words badplan, capped, hopeless, refuse and stall anywhere
+  in the prompt: keep them out of prompt text.
 - **Tick first, type later (s.js, v27):** the tick logs a set with the reps blank and restarts the k.js stopwatch from
   zero (it turns red once the exercise's rest is up); the reps box stays marked until typed. A set still blank at
   finish is saved with the expected reps and flagged `a` (assumed); a session with assumed reps never earns a weight

@@ -21,7 +21,7 @@ function defaultStart() { const t = new Date(); return ymd(addDays(t, t.getDay()
 /* ================= State ================= */
 const LS_KEY = 'traininglog.v1';
 const S = { meta: null, active: null, activeU: 0, sessions: [], scans: [] };
-function defaultMeta() { return { v: 1, program: STANDALONE ? null : 'build', startDate: defaultStart(), paused: [], priority: [], restC: 150, restI: 75, restRp: 20, style: STANDALONE ? 'rp' : 'std', styleV: 1, sound: true, effort: 'last', names: {}, lastBackup: 0, resetAt: 0, u: 1 }; }
+function defaultMeta() { return { v: 1, program: STANDALONE ? null : 'build', startDate: defaultStart(), paused: [], priority: [], restC: 150, restI: 75, restRp: 20, style: STANDALONE ? 'rp' : 'std', sound: true, effort: 'last', names: {}, lastBackup: 0, resetAt: 0, u: 1 }; }
 function normMeta(m) {
   const d = defaultMeta();
   if (!m || typeof m !== 'object') return d;
@@ -31,12 +31,7 @@ function normMeta(m) {
   o.names = (m.names && typeof m.names === 'object') ? m.names : {};
   o.restC = num(o.restC) || 150; o.restI = num(o.restI) || 75;
   o.effort = m.effort === 'all' ? 'all' : 'last';
-  // Rest-pause is the default on the site (Gabe, Oct 18: shorter sessions, same growth). Phones from before carry 'std' only
-  // because that was the old default, so the first load after this update moves them to rest-pause once (styleV marks it);
-  // a style chosen in Settings from then on is kept.
-  o.styleV = m.styleV === 1 ? 1 : 0;
-  o.style = (STANDALONE && !o.styleV) ? 'rp' : m.style === 'rp' ? 'rp' : 'std';
-  if (STANDALONE) o.styleV = 1;
+  o.style = m.style === 'rp' ? 'rp' : m.style === 'std' ? 'std' : defaultMeta().style; // rest-pause is the default for a new phone on the site; a phone keeps what it has
   o.restRp = [15, 20, 30].includes(+m.restRp) ? +m.restRp : 20;
   o.program = PROGRAMS[m.program] ? m.program : (STANDALONE ? null : 'build');
   if (!/^\d{4}-\d{2}-\d{2}$/.test(o.startDate || '')) o.startDate = defaultStart();
@@ -192,8 +187,9 @@ const P = () => PROGRAMS[S.meta.program] || PROGRAMS.build;
 const M = () => MEASURES[P().measure];
 const dayKeys = () => Object.keys(P().days);
 // Rest-pause style: one set to failure, then mini-sets on a short rest. Heavy free-weight lifts stay as straight sets.
-// The rest-pause session style applies to coach-built plans too (Gabe, Oct 18: he likes the mini-sets); the coach is told the style.
-const rpMode = () => S.meta.style === 'rp' && !P().youth;
+// The Settings session style applies to the ready-made plans. A coach-built plan written with rp on every exercise runs as
+// the coach wrote it (Gabe, Oct 18: the app does not dictate; the person tells the coach what they prefer).
+const rpMode = () => S.meta.style === 'rp' && !P().youth && !P().structured;
 const mySessions = () => liveSessions().filter(s => (s.prog || 'build') === (S.meta.program || 'build'));
 function slotOf(id) { return (P().slots[id[0]] || []).find(s => s.id === id); }
 const nameKey = (rot, id) => S.meta.program + ':' + rot + ':' + id;
@@ -203,7 +199,7 @@ function dayPlan(day, pos) {
   return P().slots[day].map(slot => {
     seen[slot.g] = (seen[slot.g] || 0) + 1;
     const full = slot.sets + (pri.includes(slot.g) && seen[slot.g] <= 2 ? 1 : 0);
-    const rp = rpMode() && !pos.deload && !!(slot.pp || slot.drop || slot.k === 'i');
+    const rp = !pos.deload && (slot.rp != null ? !!slot.rp : rpMode() && !!(slot.pp || slot.drop || slot.k === 'i'));
     return {
       slot: slot.id, name: exName(pos.rot, slot), g: slot.g, full, sets: pos.deload ? Math.ceil(full / 2) : rp ? 1 : full, rpn: rp ? full : 0, lo: slot.lo, hi: slot.hi, k: slot.k,
       drop: !!slot.drop && !pos.deload, pp: !!slot.pp && !pos.deload, bw: !!slot.bw, per: slot.per || '', cue: slot.cue || '',

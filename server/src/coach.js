@@ -45,6 +45,7 @@ How to write a plan:
 - Volume: beginners about 6 to 10 hard sets per muscle per week; experienced 10 to 20. Spread a muscle over two or more days where it fits.
 - Reps: 6 to 10 or 8 to 12 for big compound lifts, 10 to 15 or 12 to 20 for isolation. Holds (planks) use seconds with "hold": true.
 - rest: "long" for presses, rows, squats, hinges, leg press; "short" for the rest.
+- rp (rest-pause) is your call per exercise. true: the app runs ONE set to failure, then as many mini-sets to failure as the sets count, with 20 seconds between them, about a third quicker than straight sets for the same growth. false: that many straight sets with the rest given. The heavy barbell and dumbbell compounds go first in each day as straight sets (rp false, rest long), so strength shows cleanly in the log; rest-pause suits the machine, cable, isolation and bodyweight work after them. Read the person's "Session style" line: "Quick" means rest-pause on everything after the heavy lifts; "Full rests" means straight sets throughout; "Coach's call" (or nothing said) means choose from their time per session, rest-pause after the heavy lifts at 45 minutes or less. A change request that asks for shorter or longer sessions is a request to move this.
 - cue: one line of form only (position, path, what to feel, what to avoid). No weights, no rep counts, no "start at", no set structure: the app works the load out from the log and shows the cue beside it as "Form:", so a number in a cue contradicts the app.
 - effort text: beginners stop 2 or 3 reps short; experienced leave 1 or 2 on early sets and take the last set to failure.
 - warmup, for every day: 3 to 6 short lines (up to 90 characters each) that the app shows at the top of that workout. A few minutes easy (bike, row, walk), then movement prep for what the day trains (hips, hinges and leg swings before legs; arm circles, band pull-aparts and push-ups before pressing; balance, hip and hamstring work and soft landings before jumps), then two light ramp-up sets of the first exercise. Written for the day, not the same lines every day.
@@ -57,9 +58,6 @@ ${CATALOGUE.join(' · ')}
 // Kids (the `kid` role) get the youth rules on top. Positions: Lloyd et al. 2014 international consensus on youth
 // resistance training; the AAP's 2020 statement. Supervised maximal testing is fine in youth once technique is solid,
 // so competitions on jumps, throws and sprints are in; what stays out is maxing a lift they have not learned yet.
-// What the phone does with a plan when its session style is rest-pause (b.js rpMode / dayPlan). The coach writes to it.
-const STYLE_RP = 'Their app runs the rest-pause session style. Every exercise you give rest "short", and any you mark drop or partials, is run as ONE set to failure plus as many mini-sets to failure as you wrote sets, with 20 seconds between them (3 sets becomes 1 + 3 mini-sets). Exercises you give rest "long" stay as straight sets with rest held to 2 minutes. Order each day with the long-rest lifts first (strength is measured on them) and the short-rest work after. Write sets, rest and cues to fit that, and do not prescribe your own drop sets or mini-set structure in a cue: the app builds it.';
-
 const YOUTH = `This person is under 18 and trains for a sport. Youth rules, on top of everything above:
 - The plan serves their sport: strength, jumping, landing, sprinting and change of direction, shoulder and trunk work for throwing or hitting sports. Fit it around practices and games; nothing hard the day before a game, and in season two sessions a week is enough.
 - Technique before load. Bodyweight, dumbbells, goblet and split-squat patterns first; barbell lifts only once the pattern is clean and with an adult present. Loads that leave 2 or more reps in reserve on working sets.
@@ -87,14 +85,13 @@ export function userMessageFor(kind, input, person) {
       // A first build: no review of how they train (that is Review my week), or the plan never gets written.
       : ['Build a FitPitt plan for ' + name + ' from these answers and call submit_plan with it. If a log is included, use it only for the exercises they do and their current loads; do not review it or comment on how they train, that is a separate task. You may add up to 120 words of notes to ' + name + ' about how the plan is shaped; the app shows them with the plan. ' + today, '', lim(input.intake, 6000)];
     if (input.currentPlan) lines.push('', 'Their current plan:', lim(JSON.stringify(input.currentPlan), 12000));
-    if (input.style === 'rest-pause') lines.push('', STYLE_RP);
     if (input.log) lines.push('', 'Their recent log:', lim(input.log, 12000));
     if (input.note) lines.push('', 'What they want changed: ' + lim(input.note, 1000));
     return lines.join('\n');
   }
   if (kind === 'review') {
     return ['Review this week for ' + name + '. Under 250 words, plain text, no headings. Cover: what went well; what to change next week, with specific loads or reps where the log supports it; anything in the notes that matters (sleep, soreness, missed sessions); whether the plan itself should change, and if so what (do not rewrite the plan).', '', lim(input.log, 14000),
-      input.currentPlan ? '\nThe plan:\n' + lim(JSON.stringify(input.currentPlan), 8000) : '', input.style === 'rest-pause' ? '\n' + STYLE_RP : ''].join('\n');
+      input.currentPlan ? '\nThe plan:\n' + lim(JSON.stringify(input.currentPlan), 8000) : ''].join('\n');
   }
   return ['Question from ' + name + '. Answer in under 150 words, plain text.', '', 'Context: ' + lim(input.context, 4000), '', 'Question: ' + lim(input.question, 1000)].join('\n');
 }

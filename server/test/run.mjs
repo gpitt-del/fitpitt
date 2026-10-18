@@ -117,10 +117,11 @@ try {
   const daySchema = firstReq.tools[0].input_schema.properties.days.items;
   ok('every day asks for a warm-up: the guide says how, the tool requires it, and the checked plan keeps the lines', /warmup, for every day/.test(firstReq.system[0].text)
     && daySchema.required.includes('warmup') && daySchema.properties.warmup.type === 'array' && job.output.plan.days.every(d => d.warmup && d.warmup.length === 3), daySchema.required);
-  r = await call('POST', '/coach/jobs', { kind: 'plan', intake: 'Name: Mike', currentPlan: job.output.plan, note: 'Swap leg press for hack squat', log: 'FitPitt log: leg press skipped twice', style: 'rest-pause' }, mike);
+  r = await call('POST', '/coach/jobs', { kind: 'plan', intake: 'Name: Mike', currentPlan: job.output.plan, note: 'Swap leg press for hack squat', log: 'FitPitt log: leg press skipped twice' }, mike);
   job = await waitJob(mike, r.data.job.id);
   const changeReq = mock.calls[mock.calls.length - 1];
-  ok('the phone\'s rest-pause style reaches the coach, and the first build (no style sent) did not get it', /rest-pause session style/.test(changeReq.messages[0].content) && !/rest-pause session style/.test(firstReq.messages[0].content));
+  const exSchema = firstReq.tools[0].input_schema.properties.days.items.properties.ex.items;
+  ok('rest-pause is the coach\'s call per exercise: the tool requires rp and the guide explains the Session style line', exSchema.required.includes('rp') && exSchema.properties.rp.type === 'boolean' && /rp \(rest-pause\) is your call per exercise/.test(firstReq.system[0].text) && /"Session style" line/.test(firstReq.system[0].text) && job.output.plan.days[0].ex.every(e => e.hold || e.rp === true || e.rp === false), { req: exSchema.required, guide: /rp \(rest-pause\) is your call per exercise/.test(firstReq.system[0].text), line: /"Session style" line/.test(firstReq.system[0].text), ex: job.output.plan.days[0].ex.map(e => e.rp) });
   ok('cues are form only: the guide and the tool say no weights or rep counts', /cue: one line of form only/.test(firstReq.system[0].text) && /No weights, rep counts or set structure/.test(JSON.stringify(firstReq.tools)));
   ok('a change starts from the current plan, uses the log and carries the note', job.status === 'done' && /^Change Mike's plan/.test(changeReq.messages[0].content) && /What they want changed: Swap leg press/.test(changeReq.messages[0].content) && /leg press skipped twice/.test(changeReq.messages[0].content) && job.output.text === 'Here is the plan.', changeReq.messages[0].content.slice(0, 200));
   const planCost = job.cost_usd;

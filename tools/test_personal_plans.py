@@ -131,6 +131,7 @@ async def main():
         ok('nothing shared while answers are missing', await page.evaluate('window.__shared.length') == 0)
         await page.click('[data-act="fpChip"][data-q="days"][data-v="4"]')
         await page.click('[data-act="fpChip"][data-q="mins"][data-v="60 min"]')
+        await page.click('[data-act="fpChip"][data-q="pace"][data-v="Quick: short rests, mini-sets after the heavy lifts"]')
         await page.click('[data-act="fpChip"][data-q="where"][data-v="Full gym"]')
         await page.click('[data-act="fpChip"][data-q="exp"][data-v="Lifting under 2 years"]')
         await page.fill('#in-limits', 'Left shoulder pinches on overhead presses')
@@ -153,7 +154,7 @@ async def main():
         # covers the signed-in path, where the coach builds the plan.)
         ok('intake button is Save my answers', (await page.inner_text('[data-act="fpSendIntake"]')).strip() == 'Save my answers')
         text = await page.evaluate('window.FP_UI.intakeText(window.FP_UI.collectIntake())')
-        expect = ['FitPitt plan request', 'Name: Mike', 'Goal: Build muscle', 'Days a week: 4, about 60 min each', 'Where: Full gym', 'Experience: Lifting under 2 years',
+        expect = ['FitPitt plan request', 'Name: Mike', 'Goal: Build muscle', 'Days a week: 4, about 60 min each. Session style: Quick: short rests, mini-sets after the heavy lifts', 'Where: Full gym', 'Experience: Lifting under 2 years',
                   'Injuries, pain or exercises to avoid: Left shoulder pinches on overhead presses', 'Does now and likes: Bench press, lat pulldown, leg press, curls', 'Age: 41. Sex: male']
         ok('intake text has every answer', all(x in text for x in expect), text)
         print('---- intake text ----\n' + text + '\n---------------------')
@@ -517,13 +518,32 @@ async def main():
         await page.click('[data-act="pickDay"][data-d="A"]')
         pv = await page.inner_text('#app .preview')
         ok('assumed reps never earn a weight step', 'assumed, not typed' in pv and 'Add weight' not in pv.split('Lat pulldown')[0], pv.split('Lat pulldown')[0])
-        # Rest-pause is the default: a phone from before (style 'std', no styleV) moves to it once; a style chosen in Settings is kept.
-        await page.evaluate("() => { const d = JSON.parse(localStorage.getItem('traininglog.v1')); d.meta.style = 'std'; delete d.meta.styleV; localStorage.setItem('traininglog.v1', JSON.stringify(d)); }")
+        # Rest-pause is the default for a new phone; a phone keeps the style it has.
+        await page.evaluate("() => { const d = JSON.parse(localStorage.getItem('traininglog.v1')); delete d.meta.style; localStorage.setItem('traininglog.v1', JSON.stringify(d)); }")
         await page.reload(); await page.wait_for_selector('#app h1')
-        ok('an older phone on straight sets moves to rest-pause once', await page.evaluate("S.meta.style === 'rp' && S.meta.styleV === 1"))
+        ok('a phone with no style set gets rest-pause', await page.evaluate("S.meta.style === 'rp'"))
         await page.click('[data-tab="settings"]'); await page.click('[data-act="setStyle"][data-v="std"]')
         await page.reload(); await page.wait_for_selector('#app h1')
-        ok('straight sets chosen in Settings is kept across reloads', await page.evaluate("S.meta.style === 'std' && S.meta.styleV === 1"))
+        ok('straight sets chosen in Settings is kept across reloads', await page.evaluate("S.meta.style === 'std'"))
+        await ctx.close()
+
+        # ---------- 8d. A plan written with rp on every exercise runs as the coach wrote it, whatever the Settings style ----------
+        shaped = copy.deepcopy(PLAN); shaped['name'] = 'Shaped test'
+        for d in shaped['days']:
+            for i, e in enumerate(d['ex']):
+                if not e.get('hold'): e['rp'] = i >= 2  # first two exercises straight, the rest rest-pause
+        ctx, page = await newpage(browser, dev=ANDROID, tag='shaped')
+        await seed(page, meta={'v': 1, 'program': 'mine', 'startDate': monday(datetime.date.today()).isoformat(), 'paused': [], 'priority': [], 'restC': 150, 'restI': 75, 'restRp': 20, 'style': 'std', 'sound': True, 'effort': 'last', 'names': {}, 'lastBackup': 0, 'resetAt': 0, 'u': 1},
+                   extra={'fitpitt.plan': json.dumps({'plan': shaped, 'code': plancode.encode(shaped), 'at': 1})})
+        ok('the checker keeps rp true and false and marks the plan structured', await page.evaluate("P().structured === true && P().slots.A[0].rp === 0 && P().slots.A[2].rp === 1"))
+        await page.click('[data-act="pickDay"][data-d="A"]')
+        pv = await page.inner_text('#app .preview')
+        ok('with Settings on straight sets, the coach\'s rest-pause exercises still run as rest-pause', '+ 2 mini' in pv or '+ 3 mini' in pv, pv[:300])
+        await page.click('[data-act="start"]'); await page.wait_for_selector('#app .ex')
+        metas = await page.evaluate("[...document.querySelectorAll('#app .ex .ex-meta')].map(x => x.innerText.replace(/\\s+/g, ' '))")
+        ok('the first exercises are straight sets, the later ones one set plus mini-sets', 'mini' not in metas[0] and 'mini' not in metas[1] and 'mini' in metas[2], metas[:3])
+        await page.click('[data-tab="settings"]')
+        ok('Settings says the coach chose the structure and points to Change my plan', 'Your coach chose straight sets or rest-pause' in await page.inner_text('#app'))
         await ctx.close()
 
         # ---------- 9. Fixes from the review ----------

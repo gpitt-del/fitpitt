@@ -84,6 +84,8 @@ def check(p):
                 notes.append(label + ': rest should be "long", "short" or seconds from 10 to 600. The default is used.')
             if e.get('per') not in (None, '', 'leg', 'side', 'arm'):
                 notes.append(label + ': per can be leg, side or arm. It is left off.')
+            if e.get('rp') and e.get('hold'):
+                notes.append(label + ': a hold cannot be rest-pause, so rp is left off.')
             if len(str(e.get('cue') or '')) > 160:
                 notes.append(label + ': the cue is over 160 characters and gets cut.')
     return errs, notes

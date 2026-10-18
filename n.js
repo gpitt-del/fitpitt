@@ -81,6 +81,10 @@
     const cue = clean(e.cue, 160); if (cue) x.cue = cue;
     if (flag(e.hold)) x.hold = true;
     else ['drop', 'partials', 'bw'].forEach(k => { if (flag(e[k])) x[k] = true; });
+    // rp: the coach's call per exercise (Gabe, Oct 18): true = one set to failure then `sets` mini-sets on a short rest;
+    // false = straight sets. Kept as true or false when the plan says, so a plan written with it runs as written.
+    if (!x.hold && (e.rp === true || e.rp === false)) x.rp = e.rp;
+    else if (x.hold && flag(e.rp)) notes.push(label + ': a hold cannot be rest-pause, so rp was left off.');
     if (['leg', 'side', 'arm'].includes(e.per)) x.per = e.per;
     else if (e.per) notes.push(label + ': "per" can be leg, side or arm. It was left off.');
     return x;
@@ -96,7 +100,7 @@
     if (x.cue) o.cue = x.cue;
     if (x.per) o.per = x.per;
     if (x.hold) Object.assign(o, { t: 'hold', nw: 1, unit: 'sec' });
-    else { if (x.drop) o.drop = 1; if (x.partials) o.pp = 1; if (x.bw) o.bw = 1; }
+    else { if (x.drop) o.drop = 1; if (x.partials) o.pp = 1; if (x.bw) o.bw = 1; if (x.rp === true || x.rp === false) o.rp = x.rp ? 1 : 0; }
     return X(id, x.g, x.sets, x.reps[0], x.reps[1], long ? 'c' : 'i', names, o);
   }
   function toProgram(pl) {
@@ -105,6 +109,8 @@
     const own = (pl.rules || []).map(r => bold(r));
     return {
       name: pl.name, line: pl.line, perWeek: pl.perWeek, freq: pl.perWeek / pl.days.length, measure: pl.measure, personal: pl,
+      // structured: the coach chose straight sets or rest-pause for every exercise, so the Settings session style does not apply
+      structured: pl.days.every(d => d.ex.every(x => x.hold || x.rp === true || x.rp === false)),
       days, slots, warm,
       effort: () => pl.effort || DEF_EFFORT,
       deload: pl.deload || DEF_DELOAD(pl.measure),

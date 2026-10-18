@@ -156,7 +156,6 @@ async function createJobWith(b, env, me) {
   if (kind === 'ask') { input.question = str(b.question, 1000); if (!input.question) throw new HttpError(400, 'Ask a question.'); input.context = String(b.context || '').slice(0, 4000); }
   if (kind !== 'ask' && b.log && kind === 'plan') input.log = String(b.log).slice(0, 12000);
   if (b.currentPlan && typeof b.currentPlan === 'object') input.currentPlan = b.currentPlan;
-  if (b.style === 'rest-pause' || b.style === 'straight') input.style = b.style;
   const jid = id('j');
   try { await env.DB.prepare('INSERT INTO jobs (id, person_id, kind, status, created, input) VALUES (?, ?, ?, ?, ?, ?)').bind(jid, me.id, kind, 'queued', now(), JSON.stringify(input)).run(); }
   catch (e) {
