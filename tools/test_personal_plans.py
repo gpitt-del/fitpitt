@@ -499,8 +499,8 @@ async def main():
         lines = await page.evaluate("""() => [...document.querySelectorAll('#app .ex')].slice(0, 3).map(x => ({ meta: x.querySelector('.ex-meta').innerText.replace(/\\s+/g, ' '), aim: [...x.querySelectorAll('.ex-aim')].map(p => p.innerText.replace(/\\s+/g, ' ')) }))""")
         await shot(page, '12-v27-workout')
         ok('the target and the form cue are two labelled lines', lines[2]['aim'][0].startswith('Target:') and lines[2]['aim'][1].startswith('Form: Elbows about 45'), lines[2])
-        ok('the rest shown is one number, not a range', 'rest 2:30' in lines[0]['meta'] and ' to ' not in lines[0]['meta'] and 'min' not in lines[0]['meta'], lines[0]['meta'])
-        ok('a coach-built plan runs as written even with rest-pause on: no mini-sets', await page.locator('#app .set.drop').count() == 0 and 'mini' not in lines[0]['meta'], lines[0]['meta'])
+        ok('the rest shown is one number, not a range', 'rest 2:00' in lines[0]['meta'] and ' to ' not in lines[0]['meta'] and 'min' not in lines[0]['meta'], lines[0]['meta'])
+        ok('with rest-pause on, a coach plan keeps straight sets on the long-rest lifts (rest capped at 2:00) and mini-sets on the short-rest ones', 'mini' not in lines[0]['meta'] and 'rest 2:00' in lines[0]['meta'] and await page.locator('#app .set.drop').count() > 0, lines[0]['meta'])
         await page.evaluate("localStorage.setItem('fitpitt.stopwatch', JSON.stringify({ on: false, start: 0, acc: 90000 }))")  # a stale stopwatch reading
         await page.click('[data-act="toggleSet"] >> nth=0')  # reps blank
         tick = await page.evaluate("""() => { const r = document.querySelector('#app .set[data-ei="0"][data-si="0"]'), sw = JSON.parse(localStorage.getItem('fitpitt.stopwatch')); return { done: r.classList.contains('done'), want: r.querySelector('input[data-f="r"]').classList.contains('want'), swOn: sw.on, swFresh: sw.acc === 0 && Date.now() - sw.start < 3000, shows: document.getElementById('sw').textContent }; }""")
@@ -517,8 +517,6 @@ async def main():
         await page.click('[data-act="pickDay"][data-d="A"]')
         pv = await page.inner_text('#app .preview')
         ok('assumed reps never earn a weight step', 'assumed, not typed' in pv and 'Add weight' not in pv.split('Lat pulldown')[0], pv.split('Lat pulldown')[0])
-        await page.click('[data-tab="settings"]')
-        ok('Settings says the session style does not touch a coach-built plan', 'runs as the coach wrote it' in await page.inner_text('#app'))
         await ctx.close()
 
         # ---------- 9. Fixes from the review ----------

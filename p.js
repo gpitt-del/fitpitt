@@ -198,6 +198,7 @@
   function remember(kind, text) { try { const l = JSON.parse(localStorage.getItem(LOG_KEY) || '[]'); l.push({ kind, text, at: Date.now() }); localStorage.setItem(LOG_KEY, JSON.stringify(l.slice(-12))); } catch (e) { /* ignore */ } }
   const lastOf = kind => { try { const l = JSON.parse(localStorage.getItem(LOG_KEY) || '[]').filter(x => x.kind === kind); return l[l.length - 1] || null; } catch (e) { return null; } };
   const currentPlan = () => { const p = F.read(); return p && S.meta.program === 'mine' ? p.plan : null; };
+  const styleWord = () => (S.meta.style === 'rp' && !P().youth) ? 'rest-pause' : 'straight';
   const logText = () => { try { return window.FP_COACH ? window.FP_COACH.summary() : ''; } catch (e) { return ''; } };
   const busy = e => { if (e && (e.status === 402 || e.status === 409)) { openSheet('<h2>' + (e.status === 402 ? 'Budget used up' : 'The coach is busy') + '</h2><p>' + esc(e.message) + '</p><div class="frm" style="margin-top:16px"><button class="btn quiet wide" data-act="closeSheet">Close</button></div>'); return; } toast(e && e.message ? e.message : 'Could not reach the coach.'); };
   // The newest plan the coach built, for a preview that was closed or a build that finished mid-workout.
@@ -224,7 +225,7 @@
     if (!d) { toast('Answer the plan questions first; they go with the change.'); ACT.fpIntake(); return; }
     const intake = UI.intakeText(d);
     Cloud.put('intake/current', { text: intake, u: Date.now() });
-    startJob('plan', { intake, currentPlan: currentPlan(), log: liveSessions().length ? logText() : '', note }).catch(busy);
+    startJob('plan', { style: styleWord(), intake, currentPlan: currentPlan(), log: liveSessions().length ? logText() : '', note }).catch(busy);
   };
 
   // Who is answering the intake: the account's name and, for a kid account, the sport-focused question set.
@@ -240,7 +241,7 @@
     }
     const intake = UI.intakeText(d);
     Cloud.put('intake/current', { text: intake, u: Date.now() });
-    startJob('plan', { intake, currentPlan: currentPlan(), log: liveSessions().length ? logText() : '' }).catch(busy);
+    startJob('plan', { style: styleWord(), intake, currentPlan: currentPlan(), log: liveSessions().length ? logText() : '' }).catch(busy);
   };
   ACT.fpAsk = () => {
     const last = lastOf('ask');
@@ -257,7 +258,7 @@
   };
   ACT.fpReview = () => {
     if (!liveSessions().length) { toast('Log a workout first.'); return; }
-    startJob('review', { log: logText(), currentPlan: currentPlan() }).catch(busy);
+    startJob('review', { style: styleWord(), log: logText(), currentPlan: currentPlan() }).catch(busy);
   };
 
   /* ---------- sign in, settings and admin screens ---------- */
@@ -347,7 +348,7 @@
     const plan = UI.pending(); if (!plan) return;
     tellIntake(); const d = UI.collectIntake();
     const intake = d ? UI.intakeText(d) : 'See the plan and the comments.';
-    startJob('plan', { intake, currentPlan: plan, log: liveSessions().length ? logText() : '', note }).catch(busy);
+    startJob('plan', { style: styleWord(), intake, currentPlan: plan, log: liveSessions().length ? logText() : '', note }).catch(busy);
   };
   function buttons() {
     if (!signedIn()) {

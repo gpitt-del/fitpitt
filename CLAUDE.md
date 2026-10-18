@@ -11,14 +11,14 @@ FitPitt is a phone workout log (a home-screen web app) at https://gpitt-del.gith
 - Personal plans: `n.js` is the model (checking, codes, turning a plan into the program key `"mine"`); `o.js` has the screens (intake, paste a code, preview, Settings card, backups that carry the plan). The intake is five blocks for adults and five sport-focused blocks for kids (`ADULT` and `KID` in o.js); p.js picks the set by the account's role and supplies the name. The plan format is checked the same way by `tools/plancode.py`; if the format changes, change both.
 
 ## Testing and releasing
-- `python3 tools/test_personal_plans.py [screenshot folder]` runs 122 end-to-end checks in simulated phones (Playwright, headless Chromium). It runs with the API address index.html ships, so a signed-out phone saves intake answers instead of texting them; `tools/test_accounts.py` covers the signed-in paths against a local Worker and a stand-in Claude.
+- `python3 tools/test_personal_plans.py [screenshot folder]` runs 121 end-to-end checks in simulated phones (Playwright, headless Chromium). It runs with the API address index.html ships, so a signed-out phone saves intake answers instead of texting them; `tools/test_accounts.py` covers the signed-in paths against a local Worker and a stand-in Claude.
 - `python3 tools/test_update.py <previous release ref>` installs that release in a simulated phone, switches to this tree, and checks one reload brings the update, keeps the log, and works offline.
 - A push to `gh-pages` is a release; Pages rebuilds in about 30 seconds. After pushing, compare the pushed files with the tested ones and check the Pages run finished.
 - Push work in progress to a branch early. A whole build of personal plans was once lost because it lived only in a session that ended.
 
 ## Where things stand (Oct 11 2026)
-- Personal plans, accounts, sync and the coach are built and tested (tools/test_personal_plans.py 122 checks,
-  tools/test_accounts.py 56, server/test/run.mjs 68, tools/test_update.py 9 or 10).
+- Personal plans, accounts, sync and the coach are built and tested (tools/test_personal_plans.py 121 checks,
+  tools/test_accounts.py 56, server/test/run.mjs 70, tools/test_update.py 9 or 10).
 - The Worker is deployed at https://fitpitt-api.fitpitt-api.workers.dev (Gabe's personal Cloudflare account, free plan,
   D1 database `fitpitt`), and index.html's `fitpitt-api` meta tag points at it. The release to `gh-pages` is the merge
   of `personal-plans`.
@@ -69,8 +69,10 @@ FitPitt is a phone workout log (a home-screen web app) at https://gpitt-del.gith
 - **Workout screen (Gabe, Oct 13, built as v27):** the app's target and the coach's cue are two labelled lines, "Target:"
   and "Form:", and the coach is told cues carry no loads or rep counts. The rest beside the sets is the one number the
   stopwatch is measured against. A weight jump after a first set far past the range is sized from the Epley rep-max
-  estimate (i.js `sized`), never less than a normal step, never more than 20%. A coach-built plan runs exactly as
-  written: `rpMode()` is off for program "mine", so the rest-pause session style applies only to the ready-made plans.
+  estimate (i.js `sized`), never less than a normal step, never more than 20%. The rest-pause session style applies to
+  coach-built plans too (Gabe likes the mini-sets); the phone sends `style` with plan and review jobs and coach.js tells
+  the coach what the app does with it (STYLE_RP), so cues fit the structure. The mock Claude in server/test keys on the
+  words badplan, capped, hopeless, refuse and stall anywhere in the prompt: keep them out of prompt text.
 - **Tick first, type later (s.js, v27):** the tick logs a set with the reps blank and restarts the k.js stopwatch from
   zero (it turns red once the exercise's rest is up); the reps box stays marked until typed. A set still blank at
   finish is saved with the expected reps and flagged `a` (assumed); a session with assumed reps never earns a weight

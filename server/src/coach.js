@@ -57,6 +57,9 @@ ${CATALOGUE.join(' · ')}
 // Kids (the `kid` role) get the youth rules on top. Positions: Lloyd et al. 2014 international consensus on youth
 // resistance training; the AAP's 2020 statement. Supervised maximal testing is fine in youth once technique is solid,
 // so competitions on jumps, throws and sprints are in; what stays out is maxing a lift they have not learned yet.
+// What the phone does with a plan when its session style is rest-pause (b.js rpMode / dayPlan). The coach writes to it.
+const STYLE_RP = 'Their app runs the rest-pause session style. Every exercise you give rest "short", and any you mark drop or partials, is run as ONE set to failure plus as many mini-sets to failure as you wrote sets, with 20 seconds between them (3 sets becomes 1 + 3 mini-sets). Exercises you give rest "long" stay as straight sets with rest held to 2 minutes. Write sets, rest and cues to fit that, and do not prescribe your own drop sets or mini-set structure in a cue: the app builds it.';
+
 const YOUTH = `This person is under 18 and trains for a sport. Youth rules, on top of everything above:
 - The plan serves their sport: strength, jumping, landing, sprinting and change of direction, shoulder and trunk work for throwing or hitting sports. Fit it around practices and games; nothing hard the day before a game, and in season two sessions a week is enough.
 - Technique before load. Bodyweight, dumbbells, goblet and split-squat patterns first; barbell lifts only once the pattern is clean and with an adult present. Loads that leave 2 or more reps in reserve on working sets.
@@ -84,13 +87,14 @@ export function userMessageFor(kind, input, person) {
       // A first build: no review of how they train (that is Review my week), or the plan never gets written.
       : ['Build a FitPitt plan for ' + name + ' from these answers and call submit_plan with it. If a log is included, use it only for the exercises they do and their current loads; do not review it or comment on how they train, that is a separate task. You may add up to 120 words of notes to ' + name + ' about how the plan is shaped; the app shows them with the plan. ' + today, '', lim(input.intake, 6000)];
     if (input.currentPlan) lines.push('', 'Their current plan:', lim(JSON.stringify(input.currentPlan), 12000));
+    if (input.style === 'rest-pause') lines.push('', STYLE_RP);
     if (input.log) lines.push('', 'Their recent log:', lim(input.log, 12000));
     if (input.note) lines.push('', 'What they want changed: ' + lim(input.note, 1000));
     return lines.join('\n');
   }
   if (kind === 'review') {
     return ['Review this week for ' + name + '. Under 250 words, plain text, no headings. Cover: what went well; what to change next week, with specific loads or reps where the log supports it; anything in the notes that matters (sleep, soreness, missed sessions); whether the plan itself should change, and if so what (do not rewrite the plan).', '', lim(input.log, 14000),
-      input.currentPlan ? '\nThe plan:\n' + lim(JSON.stringify(input.currentPlan), 8000) : ''].join('\n');
+      input.currentPlan ? '\nThe plan:\n' + lim(JSON.stringify(input.currentPlan), 8000) : '', input.style === 'rest-pause' ? '\n' + STYLE_RP : ''].join('\n');
   }
   return ['Question from ' + name + '. Answer in under 150 words, plain text.', '', 'Context: ' + lim(input.context, 4000), '', 'Question: ' + lim(input.question, 1000)].join('\n');
 }
