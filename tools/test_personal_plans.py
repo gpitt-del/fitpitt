@@ -517,6 +517,13 @@ async def main():
         await page.click('[data-act="pickDay"][data-d="A"]')
         pv = await page.inner_text('#app .preview')
         ok('assumed reps never earn a weight step', 'assumed, not typed' in pv and 'Add weight' not in pv.split('Lat pulldown')[0], pv.split('Lat pulldown')[0])
+        # Rest-pause is the default: a phone from before (style 'std', no styleV) moves to it once; a style chosen in Settings is kept.
+        await page.evaluate("() => { const d = JSON.parse(localStorage.getItem('traininglog.v1')); d.meta.style = 'std'; delete d.meta.styleV; localStorage.setItem('traininglog.v1', JSON.stringify(d)); }")
+        await page.reload(); await page.wait_for_selector('#app h1')
+        ok('an older phone on straight sets moves to rest-pause once', await page.evaluate("S.meta.style === 'rp' && S.meta.styleV === 1"))
+        await page.click('[data-tab="settings"]'); await page.click('[data-act="setStyle"][data-v="std"]')
+        await page.reload(); await page.wait_for_selector('#app h1')
+        ok('straight sets chosen in Settings is kept across reloads', await page.evaluate("S.meta.style === 'std' && S.meta.styleV === 1"))
         await ctx.close()
 
         # ---------- 9. Fixes from the review ----------

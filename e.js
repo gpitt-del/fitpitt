@@ -189,7 +189,7 @@ const ACT = {
   askDelSession(t) { confirmSheet('Delete this workout?', 'Its sets leave your history and weekly totals.', 'delSession', 'Delete workout', t.dataset.id); },
   delSession(t) { const i = S.sessions.findIndex(x => x.id === t.dataset.id); if (i >= 0) { const o = S.sessions[i]; S.sessions[i] = { id: o.id, startedAt: o.startedAt, deleted: true }; saveSession(S.sessions[i]); } closeSheet(); render(); },
   more() { histN += 20; render(); },
-  setStyle(t) { S.meta.style = t.dataset.v === 'rp' ? 'rp' : 'std'; saveMeta(); render(); if (S.active) toast('Applies from your next workout.'); },
+  setStyle(t) { S.meta.style = t.dataset.v === 'rp' ? 'rp' : 'std'; S.meta.styleV = 1; saveMeta(); render(); if (S.active) toast('Applies from your next workout.'); },
   setEffort(t) { S.meta.effort = t.dataset.v === 'all' ? 'all' : 'last'; saveMeta(); render(); },
   togglePri(t) {
     const g = t.dataset.g, p = S.meta.priority || [];

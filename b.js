@@ -21,7 +21,7 @@ function defaultStart() { const t = new Date(); return ymd(addDays(t, t.getDay()
 /* ================= State ================= */
 const LS_KEY = 'traininglog.v1';
 const S = { meta: null, active: null, activeU: 0, sessions: [], scans: [] };
-function defaultMeta() { return { v: 1, program: STANDALONE ? null : 'build', startDate: defaultStart(), paused: [], priority: [], restC: 150, restI: 75, restRp: 20, style: 'std', sound: true, effort: 'last', names: {}, lastBackup: 0, resetAt: 0, u: 1 }; }
+function defaultMeta() { return { v: 1, program: STANDALONE ? null : 'build', startDate: defaultStart(), paused: [], priority: [], restC: 150, restI: 75, restRp: 20, style: STANDALONE ? 'rp' : 'std', styleV: 1, sound: true, effort: 'last', names: {}, lastBackup: 0, resetAt: 0, u: 1 }; }
 function normMeta(m) {
   const d = defaultMeta();
   if (!m || typeof m !== 'object') return d;
@@ -31,7 +31,12 @@ function normMeta(m) {
   o.names = (m.names && typeof m.names === 'object') ? m.names : {};
   o.restC = num(o.restC) || 150; o.restI = num(o.restI) || 75;
   o.effort = m.effort === 'all' ? 'all' : 'last';
-  o.style = m.style === 'rp' ? 'rp' : 'std';
+  // Rest-pause is the default on the site (Gabe, Oct 18: shorter sessions, same growth). Phones from before carry 'std' only
+  // because that was the old default, so the first load after this update moves them to rest-pause once (styleV marks it);
+  // a style chosen in Settings from then on is kept.
+  o.styleV = m.styleV === 1 ? 1 : 0;
+  o.style = (STANDALONE && !o.styleV) ? 'rp' : m.style === 'rp' ? 'rp' : 'std';
+  if (STANDALONE) o.styleV = 1;
   o.restRp = [15, 20, 30].includes(+m.restRp) ? +m.restRp : 20;
   o.program = PROGRAMS[m.program] ? m.program : (STANDALONE ? null : 'build');
   if (!/^\d{4}-\d{2}-\d{2}$/.test(o.startDate || '')) o.startDate = defaultStart();
