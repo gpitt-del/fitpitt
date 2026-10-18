@@ -114,17 +114,17 @@ function importData(text) {
   if (!d || !Array.isArray(d.sessions) || !Array.isArray(d.scans)) { toast('That file is not a backup from this app.'); return; }
   const now = Date.now();
   const merge = (local, inc) => { const m = new Map(local.map(x => [x.id, x])); let n = 0; inc.forEach(x => { if (!x || typeof x !== 'object' || !x.id) return; const cur = m.get(x.id); if (!cur || (x.u || 0) > (cur.u || 0)) { x.u = now; m.set(x.id, x); n++; } }); return { list: Array.from(m.values()), n }; };
-  const a = merge(S.sessions, d.sessions), b = merge(S.scans, d.scans);
-  S.sessions = a.list; S.scans = b.list;
+  const a = merge(S.sessions, d.sessions), b = merge(S.scans, d.scans), c = merge(S.days, Array.isArray(d.days) ? d.days : []);
+  S.sessions = a.list; S.scans = b.list; S.days = c.list;
   if (d.meta && typeof d.meta === 'object') S.meta = normMeta(Object.assign({}, d.meta, { resetAt: S.meta.resetAt || 0 }));
   sortAll(); saveMeta();
-  S.sessions.forEach(s => { if (s.u === now) Cloud.put('sessions/' + s.id, s); }); S.scans.forEach(s => { if (s.u === now) Cloud.put('scans/' + s.id, s); });
-  render(); toast('Restored ' + a.n + ' workouts and ' + b.n + ' measurements.');
+  S.sessions.forEach(s => { if (s.u === now) Cloud.put('sessions/' + s.id, s); }); S.scans.forEach(s => { if (s.u === now) Cloud.put('scans/' + s.id, s); }); S.days.forEach(s => { if (s.u === now) Cloud.put('days/' + s.id, s); });
+  render(); toast('Restored ' + a.n + ' workouts, ' + b.n + ' measurements and ' + c.n + ' days.');
 }
 function eraseAll() {
   const now = Date.now();
-  S.sessions.forEach(s => Cloud.put('sessions/' + s.id, null)); S.scans.forEach(s => Cloud.put('scans/' + s.id, null));
-  S.sessions = []; S.scans = []; S.active = null; S.activeU = now;
+  S.sessions.forEach(s => Cloud.put('sessions/' + s.id, null)); S.scans.forEach(s => Cloud.put('scans/' + s.id, null)); S.days.forEach(s => Cloud.put('days/' + s.id, null));
+  S.sessions = []; S.scans = []; S.days = []; S.active = null; S.activeU = now;
   S.meta = Object.assign(defaultMeta(), { resetAt: now, u: now });
   saveLocal(); Cloud.put('meta', S.meta); Cloud.put('active', { session: null, u: now });
   stopRest(); releaseWake(); closeSheet(); tab = 'today'; selDay = null; progEx = null; render(); toast('Everything erased.');
@@ -207,7 +207,7 @@ const ACT = {
   },
   unpause(t) { S.meta.paused = (S.meta.paused || []).filter(p => p !== t.dataset.p); saveMeta(); render(); },
   exportCsv() { if (!liveSessions().length) { toast('No workouts logged yet.'); return; } saveFile('fitpitt-log.csv', csvText(), 'Workout log'); },
-  exportJson() { S.meta.lastBackup = Date.now(); saveMeta(); saveFile('fitpitt-backup.json', JSON.stringify({ app: 'fitpitt', exported: new Date().toISOString(), meta: S.meta, sessions: liveSessions(), scans: liveScans() }, null, 1), 'Full backup'); },
+  exportJson() { S.meta.lastBackup = Date.now(); saveMeta(); saveFile('fitpitt-backup.json', JSON.stringify({ app: 'fitpitt', exported: new Date().toISOString(), meta: S.meta, sessions: liveSessions(), scans: liveScans(), days: liveDays() }, null, 1), 'Full backup'); },
   importJson() { const f = $('#importFile'); if (f) f.click(); },
   askErase() { confirmSheet('Erase everything?', 'Every workout, measurement and setting is removed. Download a backup first if you might want it back.', 'erase', 'Erase everything'); },
   erase() { eraseAll(); },

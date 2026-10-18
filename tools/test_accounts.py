@@ -245,6 +245,11 @@ async def main():
         await mike2.wait_for_timeout(2500)
         await mike.evaluate('Cloud.sync()'); await mike.wait_for_timeout(1500)
         ok('a scan on the Android phone reaches the iPhone', await mike.evaluate("JSON.parse(localStorage.getItem('traininglog.v1')).scans.length") == 1)
+        # a day outside the gym typed on phone 2 reaches phone 1 (the 'day' kind, v28)
+        await mike2.click('#tabs [data-tab="today"]'); await mike2.wait_for_selector('#wk-pro')
+        await mike2.fill('#wk-pro', '185'); await mike2.wait_for_timeout(3000)
+        await mike.evaluate('Cloud.sync()'); await mike.wait_for_timeout(1500)
+        ok("a day's protein typed on the Android phone reaches the iPhone", await mike.evaluate("(JSON.parse(localStorage.getItem('traininglog.v1')).days || []).some(d => d.pro === 185)"))
         # a deletion on phone 1 reaches phone 2
         await mike.click('#tabs [data-tab="progress"]')
         await mike.locator('#app details.sess summary').first.click()

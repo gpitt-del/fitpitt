@@ -20,7 +20,7 @@ function defaultStart() { const t = new Date(); return ymd(addDays(t, t.getDay()
 
 /* ================= State ================= */
 const LS_KEY = 'traininglog.v1';
-const S = { meta: null, active: null, activeU: 0, sessions: [], scans: [] };
+const S = { meta: null, active: null, activeU: 0, sessions: [], scans: [], days: [] }; // days: the week outside the gym, one entry per date (id = YYYY-MM-DD)
 function defaultMeta() { return { v: 1, program: STANDALONE ? null : 'build', startDate: defaultStart(), paused: [], priority: [], restC: 150, restI: 75, restRp: 20, style: STANDALONE ? 'rp' : 'std', sound: true, effort: 'last', names: {}, lastBackup: 0, resetAt: 0, u: 1 }; }
 function normMeta(m) {
   const d = defaultMeta();
@@ -40,6 +40,7 @@ function normMeta(m) {
 function sortAll() {
   S.sessions.sort((a, b) => (a.startedAt || 0) - (b.startedAt || 0));
   S.scans.sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : (a.u || 0) - (b.u || 0));
+  S.days.sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
 }
 function loadLocal() {
   try {
@@ -47,17 +48,18 @@ function loadLocal() {
     if (raw) {
       const d = JSON.parse(raw);
       S.meta = normMeta(d.meta); S.active = d.active || null; S.activeU = d.activeU || 0;
-      S.sessions = Array.isArray(d.sessions) ? d.sessions : []; S.scans = Array.isArray(d.scans) ? d.scans : [];
+      S.sessions = Array.isArray(d.sessions) ? d.sessions : []; S.scans = Array.isArray(d.scans) ? d.scans : []; S.days = Array.isArray(d.days) ? d.days : [];
     }
   } catch (e) { /* storage can be empty or blocked */ }
   if (!S.meta) S.meta = defaultMeta();
   sortAll();
 }
 function saveLocal() {
-  try { localStorage.setItem(LS_KEY, JSON.stringify({ meta: S.meta, active: S.active, activeU: S.activeU, sessions: S.sessions, scans: S.scans })); } catch (e) { /* ignore */ }
+  try { localStorage.setItem(LS_KEY, JSON.stringify({ meta: S.meta, active: S.active, activeU: S.activeU, sessions: S.sessions, scans: S.scans, days: S.days })); } catch (e) { /* ignore */ }
 }
 const liveSessions = () => S.sessions.filter(s => !s.deleted);
 const liveScans = () => S.scans.filter(s => !s.deleted);
+const liveDays = () => S.days.filter(s => !s.deleted);
 
 function saveMeta() { S.meta.u = Date.now(); saveLocal(); Cloud.put('meta', S.meta); }
 let activeTimer = null;
@@ -69,6 +71,7 @@ function saveActive(now) {
 }
 function saveSession(s) { s.u = Date.now(); sortAll(); saveLocal(); Cloud.put('sessions/' + s.id, s); }
 function saveScan(s) { s.u = Date.now(); sortAll(); saveLocal(); Cloud.put('scans/' + s.id, s); }
+function saveDay(d) { d.u = Date.now(); if (!S.days.includes(d)) { const i = S.days.findIndex(x => x.id === d.id); if (i >= 0) S.days[i] = d; else S.days.push(d); } sortAll(); saveLocal(); Cloud.put('days/' + d.id, d); }
 
 /* ================= Account storage (db capability), with this device as cache ================= */
 const STATUS = { local: 'Saved on this device', saving: 'Saving', saved: 'Saved to your account', unsynced: 'Not synced yet' };

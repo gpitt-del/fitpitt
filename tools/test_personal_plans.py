@@ -546,6 +546,80 @@ async def main():
         ok('Settings says the coach chose the structure and points to Change my plan', 'Your coach chose straight sets or rest-pause' in await page.inner_text('#app'))
         await ctx.close()
 
+        # ---------- 8e. v28: the week outside the gym (targets, Today card, Settings, Progress, the coach's summary, kids) ----------
+        base_meta = {'v': 1, 'program': 'mine', 'startDate': monday(datetime.date.today()).isoformat(), 'paused': [], 'priority': [], 'restC': 150, 'restI': 75, 'restRp': 20, 'style': 'rp', 'sound': True, 'effort': 'last', 'names': {}, 'lastBackup': 0, 'resetAt': 0, 'u': 1}
+        ctx, page = await newpage(browser, tag='week')
+        await seed(page, meta=base_meta, scans=[{'id': 'sc1', 'date': (datetime.date.today() - datetime.timedelta(days=3)).isoformat(), 'weight': 200, 'fat': 15, 'u': 1}],
+                   extra={'fitpitt.plan': json.dumps({'plan': PLAN, 'code': CODE, 'at': 1})})
+        T = await page.evaluate('window.FP_WEEK.targets()')
+        # 200 lb at 15% = 170 lb lean = 77.1 kg; BMR 370 + 21.6 × 77.1 = 2036; × 1.35 = 2748 → 2750; build +300
+        ok('targets come from the latest scan with Katch-McArdle: maintenance 2,750, build 3,050 kcal, 180 g protein, 100 oz water', T['fromScan'] and T['maint'] == 2750 and T['kcal'] == 3050 and T['pro'] == 180 and T['water'] == 100 and T['steps'] == 8000 and T['sleep'] == 7.5 and T['z2'] == 90 and T['hiit'] == 1, T)
+        card = page.locator('#app .wk-today')
+        ok('Today has the card after the tip, with calories, protein, water, steps, sleep, zone 2, the 4×4 and morning weight', await card.count() == 1 and await card.locator('[data-wk]').count() == 7 and await card.locator('[data-act="wkHiit"]').count() == 1
+           and await page.evaluate("document.querySelector('.fp-tip').nextElementSibling.classList.contains('wk-today')"))
+        ct = await card.inner_text()
+        ok('each row shows its target', 'target 3,050' in ct and 'target 180 g' in ct and 'target 100 oz' in ct and 'target 8,000' in ct and 'target 7.5 h' in ct and '0 of 90 min' in ct and '0 of 1.' in ct, ct)
+        await shot(page, '13-v28-today')
+        await page.fill('#wk-pro', '190'); await page.wait_for_timeout(700)
+        await page.fill('#wk-kcal', '2900'); await page.wait_for_timeout(700)
+        await page.fill('#wk-sleep', '6'); await page.wait_for_timeout(700)
+        await page.fill('#wk-z2', '45'); await page.wait_for_timeout(700)
+        ticks = await page.evaluate("[...document.querySelectorAll('.wk-today .wk-row')].map(r => r.querySelector('.wk-ok').classList.contains('on'))")
+        ok('a tick turns on when the entry meets the target: protein 190 and 2,900 kcal (within 10%) yes, 6 h sleep and 45 of 90 zone 2 minutes no', ticks[0] and ticks[1] and not ticks[4] and not ticks[5], ticks)
+        await page.click('[data-act="wkHiit"]')
+        ok('the 4×4 button logs today and counts the week', 'Done today' in await card.inner_text() and await page.evaluate("window.FP_WEEK.dayOf('%s').hiit === 1" % datetime.date.today().isoformat()))
+        day = await page.evaluate("JSON.parse(localStorage.getItem('traininglog.v1')).days.find(d => d.id === '%s')" % datetime.date.today().isoformat())
+        ok('the entries are one record per date in the log', day and day['pro'] == 190 and day['kcal'] == 2900 and day['sleep'] == 6 and day['z2'] == 45 and day['hiit'] == 1 and day['u'] > 0, day)
+        await page.reload(); await page.wait_for_selector('#app .wk-today')
+        ok('the entries are still there after a reload', await page.input_value('#wk-pro') == '190' and 'Done today' in await page.inner_text('#app .wk-today'))
+        # the Progress line and the coach's summary
+        await page.click('#tabs [data-tab="progress"]')
+        pl = await page.locator('#app .wk-week').inner_text()
+        ok('Progress sums the week outside the gym', pl.startswith('Outside the gym:') and 'protein hit 1 of 1 days' in pl and 'sleep 6.0 h' in pl and 'zone 2 45 of 90 min' in pl and '4×4 1 of 1' in pl, pl)
+        summ = await page.evaluate('window.FP_COACH.summary()')
+        ok('the coach\'s summary carries the last 7 days and the targets', 'Outside the gym, last 7 days (targets: 3,050 kcal, 180 g protein' in summ and '2,900 kcal, 190 g protein, 6 h sleep, 45 min zone 2, 4x4 done' in summ and 'estimated maintenance 2,750' in summ, summ[-400:])
+        # Settings: goal, activity, typed weight, and the correction from the log
+        await page.click('#tabs [data-tab="settings"]')
+        st = page.locator('#wk-set')
+        ok('Settings has the Outside the gym card after the plan card, with the estimate', await st.count() == 1 and await page.evaluate("document.querySelector('#fp-set').nextElementSibling.id === 'wk-set'") and 'Maintenance about 2,750 kcal' in await st.inner_text() and 'from your scan' in await st.inner_text())
+        await shot(page, '14-v28-settings', full=True)
+        await page.click('#wk-set [data-act="wkGoal"][data-v="cut"]')
+        T = await page.evaluate('window.FP_WEEK.targets()')
+        ok('Cut takes 450 off maintenance and raises protein to 1 g per lb', T['kcal'] == 2300 and T['pro'] == 200 and 'Target 2,300 kcal and 200 g protein to cut' in await st.inner_text(), T)
+        await page.click('#wk-set [data-act="wkAct"][data-v="active"]')
+        ok('an active job raises maintenance', (await page.evaluate('window.FP_WEEK.targets()'))['maint'] == 3360)
+        await page.fill('#wk-set [data-wkset="lb"]', '180'); await page.wait_for_timeout(800)
+        T = await page.evaluate('window.FP_WEEK.targets()')
+        ok('a typed weight overrides the scan', T['lb'] == 180 and not T['fromScan'] and T['pro'] == 180, T)
+        await page.fill('#wk-set [data-wkset="lb"]', ''); await page.wait_for_timeout(800)
+        await page.click('#wk-set [data-act="wkGoal"][data-v="build"]'); await page.click('#wk-set [data-act="wkAct"][data-v="desk"]')
+        ok('clearing it goes back to the scan', (await page.evaluate('window.FP_WEEK.targets()'))['fromScan'])
+        ok('no correction is offered before two weeks of calories and weights', await page.evaluate('window.FP_WEEK.suggest(window.FP_WEEK.targets()) === null') and 'Your log says' not in await st.inner_text())
+        # 14 days of 3,000 kcal with the weight climbing 0.2 lb a day: true maintenance is about 3000 − 700 = 2300, so the app offers the −150 cap
+        days = [{'id': (datetime.date.today() - datetime.timedelta(days=i)).isoformat(), 'kcal': 3000, 'wt': round(200 - 0.2 * i, 1), 'u': 1} for i in range(14)]
+        await page.evaluate("ds => { const d = JSON.parse(localStorage.getItem('traininglog.v1')); d.days = ds; localStorage.setItem('traininglog.v1', JSON.stringify(d)); }", days)
+        await page.reload(); await page.wait_for_selector('#app h1'); await page.click('#tabs [data-tab="settings"]')
+        sg = await page.evaluate('window.FP_WEEK.suggest(window.FP_WEEK.targets())')
+        ok('gaining faster than the estimate predicts lowers the offered maintenance, by at most 150', sg and sg['adj'] == -150 and sg['to'] == 2600 and sg['days'] == 14 and 'closer to 2,600 kcal' in await st.inner_text() and 'weight up 1.4 lb a week' in await st.inner_text(), (sg, (await st.inner_text())[-300:]))
+        await page.click('#wk-set [data-act="wkUse"]')
+        T = await page.evaluate('window.FP_WEEK.targets()')
+        ok('the correction is applied only when tapped, and shows in the estimate', T['maint'] == 2600 and T['kcal'] == 2900 and 'Corrected by -150 from your log' in await st.inner_text() and (await page.evaluate("JSON.parse(localStorage.getItem('traininglog.v1')).meta.week.adj")) == -150, T)
+        # a backup carries the days
+        async with page.expect_download() as dl:
+            await page.click('[data-act="exportJson"]')
+        bk = json.load(open(await (await dl.value).path()))
+        ok('a backup carries the days', len(bk['days']) == 14 and bk['days'][0]['kcal'] == 3000, len(bk.get('days', [])))
+        # a kid: protein, water, sleep and steps only
+        await page.evaluate("window.FP_KID = () => true")
+        await page.click('#tabs [data-tab="today"]'); await page.wait_for_selector('#app .wk-today')
+        kt = await page.inner_text('#app .wk-today')
+        T = await page.evaluate('window.FP_WEEK.targets()')
+        ok('a kid gets protein, water, sleep and steps: no calories, zone 2, 4×4 or morning weight', T['kid'] and T['kcal'] == 0 and T['pro'] == 140 and T['sleep'] == 9 and await page.locator('#app .wk-today [data-wk]').count() == 4 and 'Calories' not in kt and 'Zone 2' not in kt and '4×4' not in kt and 'weight' not in kt and 'target 9 h' in kt, (T, kt))
+        await page.click('#tabs [data-tab="settings"]')
+        ks = await page.inner_text('#wk-set')
+        ok('a kid\'s Settings card has no goal, no calorie estimate and no cutting', 'No calorie counting' in ks and 'Cut' not in ks and 'Maintenance' not in ks and '140 g protein' in ks, ks)
+        await ctx.close()
+
         # ---------- 9. Fixes from the review ----------
         ctx, page = await newpage(browser, tag='review')
         await page.goto(SITE); await page.wait_for_selector('#app h1')

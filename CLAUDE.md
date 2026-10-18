@@ -3,22 +3,23 @@
 FitPitt is a phone workout log (a home-screen web app) at https://gpitt-del.github.io/fitpitt/, served by GitHub Pages from this repo's `gh-pages` branch. There is no build step. This repo is public, so nothing secret goes in it: no API keys, no personal data.
 
 ## How the app is put together
-- `index.html` loads plain scripts in this order: a b c d **n** e f g h i j k l m **o p q s**. a–e are the base app. The rest are add-ons that run only on this site (`STANDALONE`) and wrap or add to what the base defines (`ACT` handlers, `viewChooser`, `scanSheet`, `aim`, and so on). New features go in a new add-on file, not in edits to existing files.
+- `index.html` loads plain scripts in this order: a b c d **n** e f g h i j k l m **o p q s t**. a–e are the base app. The rest are add-ons that run only on this site (`STANDALONE`) and wrap or add to what the base defines (`ACT` handlers, `viewChooser`, `scanSheet`, `aim`, and so on). New features go in a new add-on file, not in edits to existing files.
 - **`n.js` must load before `e.js`**, because `e.js` loads the log at its end and drops a plan key it does not know. Every other add-on loads after `e.js`, so the first screen has already been drawn once when they arrive.
 - Each person's log lives on their own phone (localStorage key `traininglog.v1`); a signed-in phone also syncs it to the person's account (p.js, server/).
-- `sw.js` gives offline use. Bump `CACHE` on every release (`fitpitt-v27` now) **and the version in the `#brand` bar in index.html** (a check in tools/test_personal_plans.py keeps them equal); keep `SHELL` listing every app file. `tools/` is not part of the app and is not cached.
+- `sw.js` gives offline use. Bump `CACHE` on every release (`fitpitt-v28` now) **and the version in the `#brand` bar in index.html** (a check in tools/test_personal_plans.py keeps them equal); keep `SHELL` listing every app file. `tools/` is not part of the app and is not cached.
 - Photo reader for InBody sheets: `m.js` plus the `ocr7/` folder (Tesseract.js 7.0.0, unmodified). Never change `ocr7/` in place; a newer reader goes in a new folder.
 - Personal plans: `n.js` is the model (checking, codes, turning a plan into the program key `"mine"`); `o.js` has the screens (intake, paste a code, preview, Settings card, backups that carry the plan). The intake is five blocks for adults and five sport-focused blocks for kids (`ADULT` and `KID` in o.js); p.js picks the set by the account's role and supplies the name. The plan format is checked the same way by `tools/plancode.py`; if the format changes, change both.
 
 ## Testing and releasing
-- `python3 tools/test_personal_plans.py [screenshot folder]` runs 127 end-to-end checks in simulated phones (Playwright, headless Chromium). It runs with the API address index.html ships, so a signed-out phone saves intake answers instead of texting them; `tools/test_accounts.py` covers the signed-in paths against a local Worker and a stand-in Claude.
+- `python3 tools/test_personal_plans.py [screenshot folder]` runs 147 end-to-end checks in simulated phones (Playwright, headless Chromium). It runs with the API address index.html ships, so a signed-out phone saves intake answers instead of texting them; `tools/test_accounts.py` covers the signed-in paths against a local Worker and a stand-in Claude.
 - `python3 tools/test_update.py <previous release ref>` installs that release in a simulated phone, switches to this tree, and checks one reload brings the update, keeps the log, and works offline.
 - A push to `gh-pages` is a release; Pages rebuilds in about 30 seconds. After pushing, compare the pushed files with the tested ones and check the Pages run finished.
 - Push work in progress to a branch early. A whole build of personal plans was once lost because it lived only in a session that ended.
 
-## Where things stand (Oct 11 2026)
-- Personal plans, accounts, sync and the coach are built and tested (tools/test_personal_plans.py 127 checks,
-  tools/test_accounts.py 56, server/test/run.mjs 70, tools/test_update.py 9 or 10).
+## Where things stand (Oct 18 2026)
+- Personal plans, accounts, sync, the coach and the week outside the gym are built and tested (tools/test_personal_plans.py
+  147 checks, tools/test_accounts.py 57, server/test/run.mjs 70, tools/test_update.py 9 or 10). On Windows the Python is
+  `python` (`python3` is the Store stub); the server suite needs `npm install` in server/ first.
 - The Worker is deployed at https://fitpitt-api.fitpitt-api.workers.dev (Gabe's personal Cloudflare account, free plan,
   D1 database `fitpitt`), and index.html's `fitpitt-api` meta tag points at it. The release to `gh-pages` is the merge
   of `personal-plans`.
@@ -33,7 +34,7 @@ FitPitt is a phone workout log (a home-screen web app) at https://gpitt-del.gith
   lives on workers.dev with CORS for `https://gpitt-del.github.io` and bearer device tokens, no cookies.
 - **Accounts:** invite-only. The admin signs in with the ADMIN_SETUP_KEY secret; he adds people and makes invite
   codes (14 days, 3 phones). A phone holding one person's log refuses another person's code until the log is erased.
-- **Sync:** per-person docs (meta, active, session, scan, plan, intake); the newer `u` wins; phones pull by the
+- **Sync:** per-person docs (meta, active, session, scan, day, plan, intake); the newer `u` wins; phones pull by the
   server's arrival order `seq`, so a workout pushed late still arrives. The Cloud object in b.js is taken over by p.js.
 - **Coach:** Fable 5.1 for plans, reviews and questions (a setting per task). Calls are **streamed** and put back
   together in coach.js (a reply held until complete was cut off by the API's front door with a 524 after about 100 s
@@ -84,5 +85,15 @@ FitPitt is a phone workout log (a home-screen web app) at https://gpitt-del.gith
   zero (it turns red once the exercise's rest is up); the reps box stays marked until typed. A set still blank at
   finish is saved with the expected reps and flagged `a` (assumed); a session with assumed reps never earns a weight
   step. The automatic rest timer was retired on Oct 4 (k.js) in favour of the manual stopwatch; the tick now drives it.
+- **The week outside the gym (t.js, v28, Gabe, Oct 12 and 13):** Settings → Outside the gym holds the goal (build, keep,
+  cut), activity, weight and body fat (from the latest scan unless typed) and targets for steps, sleep, zone 2 minutes
+  a week and Norwegian 4×4 sessions a week, all in `meta.week` (only what was set is stored). Maintenance is
+  Katch-McArdle from lean mass × 1.35/1.5/1.65; calories are maintenance +300 to build or −450 to cut; protein 0.9 g/lb
+  (1.0 on a cut); water half an ounce per lb. Today has a card with one row per target (`S.days`, one record per date,
+  synced as the `day` kind, in backups); Progress sums the week; the coach's summary (FP_COACH.summary) gets the last
+  7 days and the targets. After 10 days of calories and 4 weights over 14 days the app offers a corrected maintenance
+  (±150 at most) and the person taps to accept it; the app never changes the number itself. Kids (youth plan or kid
+  role): protein 0.7 g/lb, water, sleep (9 h) and steps only; no calories, no cutting, no zone 2 or 4×4. The card's own
+  class is `wko`: `.wk` is the week-dot class in app.css.
 - **Kids:** a `kid` role with `parent_id`. Kids get the sport intake and the youth rules; their competitions (jump and
   throw tests, consistency) are not built yet.

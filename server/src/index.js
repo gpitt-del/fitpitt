@@ -5,7 +5,7 @@ import { getSettings, putSettings } from './settings.js';
 import { now, month, id, token, inviteCode, normCode, sha256, sameString, HttpError, corsHeaders, json, readJson, str } from './util.js';
 export { CoachJob } from './job.js';
 
-const KINDS = new Set(['meta', 'active', 'session', 'scan', 'plan', 'intake']);
+const KINDS = new Set(['meta', 'active', 'session', 'scan', 'day', 'plan', 'intake']);
 const JOB_KINDS = new Set(['plan', 'review', 'ask']);
 const INVITE_DAYS = 14, SEEN_EVERY = 10 * 60 * 1000;
 

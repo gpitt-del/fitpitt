@@ -24,6 +24,7 @@
   const signedIn = () => !!acct;
   const isAdmin = () => !!acct && acct.person.role === 'admin';
   const isKid = () => !!acct && acct.person.role === 'kid';
+  window.FP_KID = isKid; // t.js: kids get protein, water and sleep targets only
 
   class ApiError extends Error { constructor(status, data) { super((data && data.error) || ('Server error ' + status)); this.status = status; this.code = data && data.code; } }
   async function call(method, path, body, opts) {
@@ -69,7 +70,7 @@
   const store0 = (plan, code, at) => { try { localStorage.setItem(F.KEY, JSON.stringify({ plan, code: code || '', at: at || Date.now() })); return true; } catch (e) { return false; } };
   const fforget = F.forget;
   // Keys the base app uses: 'meta', 'active', 'sessions/<id>', 'scans/<id>'. This file adds 'plan/current' and 'intake/current'.
-  const KIND = { meta: 'meta', active: 'active', sessions: 'session', scans: 'scan', plan: 'plan', intake: 'intake' };
+  const KIND = { meta: 'meta', active: 'active', sessions: 'session', scans: 'scan', days: 'day', plan: 'plan', intake: 'intake' };
   let state = { since: 0, pushed: 0, person: null };
   try { state = Object.assign(state, JSON.parse(localStorage.getItem(SYNC_KEY) || '{}')); } catch (e) { /* fresh */ }
   const saveState = () => { try { localStorage.setItem(SYNC_KEY, JSON.stringify(state)); } catch (e) { /* ignore */ } };
@@ -89,6 +90,7 @@
     if ((S.activeU || 0) > since) this.q.set('active', { session: S.active, u: S.activeU });
     S.sessions.forEach(s => { if ((s.u || 0) > since) this.q.set('sessions/' + s.id, s.deleted ? null : plain(s)); });
     S.scans.forEach(s => { if ((s.u || 0) > since) this.q.set('scans/' + s.id, s.deleted ? null : plain(s)); });
+    S.days.forEach(s => { if ((s.u || 0) > since) this.q.set('days/' + s.id, s.deleted ? null : plain(s)); });
     const pl = F.read(); if (pl && (pl.at || 0) > since) this.q.set('plan/current', { plan: pl.plan, code: pl.code, u: pl.at });
     await this.sync();
   };
@@ -139,7 +141,8 @@
       if (d.kind === 'plan' || d.kind === 'intake') continue;
       if (d.kind === 'meta') { if (!d.deleted && d.body && (d.body.u || 0) > (S.meta.u || 0)) { S.meta = normMeta(d.body); changed = true; } continue; }
       if (d.kind === 'active') { if (!d.deleted && d.body && (d.body.u || 0) > (S.activeU || 0)) { S.active = d.body.session && !S.sessions.some(s => s.id === (d.body.session || {}).id) ? d.body.session : null; S.activeU = d.body.u; changed = true; } continue; }
-      const list = d.kind === 'session' ? S.sessions : S.scans, i = list.findIndex(x => x.id === d.id);
+      if (d.kind !== 'session' && d.kind !== 'scan' && d.kind !== 'day') continue;
+      const list = d.kind === 'session' ? S.sessions : d.kind === 'day' ? S.days : S.scans, i = list.findIndex(x => x.id === d.id);
       const cur = i >= 0 ? list[i] : null;
       if (cur && (cur.u || 0) >= d.u) continue;
       const v = d.deleted ? Object.assign({ id: d.id, deleted: true, u: d.u }, cur ? { startedAt: cur.startedAt, date: cur.date } : {}) : Object.assign({}, d.body, { id: d.id, u: d.u });

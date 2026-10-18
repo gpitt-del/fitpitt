@@ -83,12 +83,13 @@ try {
     { kind: 'meta', id: 'meta', u: t1, body: { program: 'mine', startDate: '2026-10-12' } },
     { kind: 'session', id: 's1', u: t1, body: { id: 's1', day: 'A', ex: [] } },
     { kind: 'scan', id: 'b1', u: t1, body: { id: 'b1', weight: 200 } },
+    { kind: 'day', id: '2026-10-18', u: t1, body: { id: '2026-10-18', pro: 185 } },
     { kind: 'bogus', id: 'x', u: t1, body: {} },
   ] }, mike);
-  ok('push from phone 1', r.status === 200 && r.data.acks.length === 3 && r.data.docs.length === 3 && r.data.cursor > 0, r.data);
+  ok('push from phone 1', r.status === 200 && r.data.acks.length === 4 && r.data.docs.length === 4 && r.data.cursor > 0, r.data);
   const cur1 = r.data.cursor;
   r = await call('POST', '/sync', { since: 0, docs: [] }, mike2);
-  ok('phone 2 pulls everything', r.data.docs.length === 3 && r.data.docs.find(d => d.kind === 'meta').body.program === 'mine');
+  ok('phone 2 pulls everything, the day kind included', r.data.docs.length === 4 && r.data.docs.find(d => d.kind === 'day').body.pro === 185 && r.data.docs.find(d => d.kind === 'meta').body.program === 'mine');
   r = await call('POST', '/sync', { since: 0, docs: [{ kind: 'session', id: 's1', u: t1 - 1000, body: { id: 's1', day: 'OLD' } }] }, mike2);
   ok('an older copy does not overwrite', r.data.docs.find(d => d.id === 's1').body.day === 'A');
   r = await call('POST', '/sync', { since: 0, docs: [{ kind: 'session', id: 's1', u: t1 + 1000, deleted: true }] }, mike2);
