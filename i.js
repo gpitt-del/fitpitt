@@ -15,18 +15,28 @@
     if (deload || P().youth || (p.t && p.t !== 'str')) return out;
     const last = lastFor(p.name, false); if (!last) return out;
     const m = main(last.e), w = m[0].w || 0, reps = m.map(x => x.r);
-    if (!w || !m.every(x => (x.w || 0) === w) || out.text.indexOf('Add weight') === 0) return out;
+    if (!w || !m.every(x => (x.w || 0) === w)) return out;
     const was = fmtLoad(w, p.bw) + ' for ' + reps.join(', ');
     if (reps.every(r => r < p.lo)) {
       const nw = Math.max(0, w - Math.max(step(w), Math.round(w * 0.1 / 5) * 5));
       return { text: 'Too heavy for ' + p.lo + ' to ' + p.hi + ' reps. Drop to ' + fmtLoad(nw, p.bw) + '. Last time ' + was + '.', ws: m.map(() => nw), reps: [] };
     }
     if (reps[0] >= p.hi + 2 && reps.every(r => r >= p.lo)) {
-      const nw = w + step(w);
+      // The jump is sized from the first set, not a flat step (Gabe, Oct 13: 115 lb for 18 reps on 6 to 10 was told 120; the
+      // coach said 135 to 140). Epley's estimate of the one-rep max, then the load that lands the first set at the top of the
+      // range, rounded to the plate, never less than a normal step and never more than 20% at once. Bodyweight lifts keep the
+      // step, because the added load alone does not estimate anything.
+      const nw = p.bw ? w + step(w) : sized(w, reps[0], p.hi);
       return { text: 'First set went past ' + p.hi + '. Add weight: ' + fmtLoad(nw, p.bw) + '. Last time ' + was + '.', ws: m.map(() => nw), reps: [] };
     }
     return out;
   };
+  function sized(w, r1, hi) {
+    const unit = w < 20 ? 2.5 : 5, max1 = w * (1 + Math.min(r1, 30) / 30), want = max1 / (1 + hi / 30);
+    const nw = Math.round(Math.min(want, w * 1.2) / unit) * unit;
+    return Math.max(w + step(w), nw);
+  }
+  window.FP_SIZED = sized; // for the tests
 
   /* ---------- notes ---------- */
   function history(name) {

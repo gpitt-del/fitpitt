@@ -187,7 +187,8 @@ const P = () => PROGRAMS[S.meta.program] || PROGRAMS.build;
 const M = () => MEASURES[P().measure];
 const dayKeys = () => Object.keys(P().days);
 // Rest-pause style: one set to failure, then mini-sets on a short rest. Heavy free-weight lifts stay as straight sets.
-const rpMode = () => S.meta.style === 'rp' && !P().youth;
+// A coach-built plan (program "mine") runs exactly as the coach wrote it (Gabe, Oct 13): no rest-pause conversion.
+const rpMode = () => S.meta.style === 'rp' && !P().youth && !P().personal;
 const mySessions = () => liveSessions().filter(s => (s.prog || 'build') === (S.meta.program || 'build'));
 function slotOf(id) { return (P().slots[id[0]] || []).find(s => s.id === id); }
 const nameKey = (rot, id) => S.meta.program + ':' + rot + ':' + id;

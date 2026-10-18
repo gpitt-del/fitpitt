@@ -1,10 +1,10 @@
 // FitPitt offline support. Own files load from the network first so updates arrive, and from the cache when offline.
-const CACHE = 'fitpitt-v26';
+const CACHE = 'fitpitt-v27';
 // The photo reader's files (the ocr7 folder) are large and never change. They are fetched the first time a photo is read, then kept through app updates.
 const READER = 'fitpitt-ocr7';
 // The exercise pictures (img/, about 0.7 MB in all) are part of the shell so the how-to sheet works offline. Keep this list equal to the files in img/ and to q.js PICS.
 const PICS = ['abductor', 'adductor', 'back_toss', 'balance', 'bear', 'bench', 'boxjump', 'bridge', 'broad', 'bulg', 'calf', 'chest', 'cmj', 'crab', 'crunch', 'curl', 'curl_bayes', 'curl_cable', 'curl_incline', 'curl_preacher', 'deadbug', 'dip', 'drop', 'facepull', 'fly', 'hack', 'hangraise', 'hipthrust', 'hk_press', 'incline', 'landmine', 'lateral', 'latlunge', 'legext', 'legpress', 'linehop', 'oh_throw', 'ohp', 'ohp_seat', 'pallof', 'pogo', 'pulldown', 'pullthrough', 'pullup', 'pushdown', 'pushup', 'rdl', 'reach', 'rfly', 'row_1a', 'row_cs', 'sa_pulldown', 'scoop', 'side_throw', 'sideplank', 'skater', 'skull', 'slam', 'snap', 'snap1', 'squat', 'squat_bb', 'squat_box', 'stepup', 'tri_oh'];
-const SHELL = ['./', 'index.html', 'app.css', 'a.js', 'b.js', 'c.js', 'd.js', 'n.js', 'e.js', 'f.js', 'g.js', 'h.js', 'i.js', 'j.js', 'k.js?v=2', 'l.js', 'm.js', 'o.js', 'p.js', 'q.js', 'manifest.webmanifest', 'icon.svg'].concat(PICS.map(p => 'img/' + p + '.webp'));
+const SHELL = ['./', 'index.html', 'app.css', 'a.js', 'b.js', 'c.js', 'd.js', 'n.js', 'e.js', 'f.js', 'g.js', 'h.js', 'i.js', 'j.js', 'k.js?v=2', 'l.js', 'm.js', 'o.js', 'p.js', 'q.js', 's.js', 'manifest.webmanifest', 'icon.svg'].concat(PICS.map(p => 'img/' + p + '.webp'));
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE && k !== READER).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
 self.addEventListener('fetch', e => {

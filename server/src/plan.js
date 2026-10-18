@@ -97,7 +97,7 @@ const exerciseSchema = {
     sets: { type: 'integer', description: '1 to 8.' },
     reps: { type: 'array', items: { type: 'integer' }, description: 'Exactly two numbers, [low, high], low at most high, up to 100. Seconds for a hold, up to 600.' },
     rest: { type: 'string', enum: ['long', 'short'], description: 'long = 2 to 3 minutes (compound lifts), short = 60 to 90 seconds.' },
-    cue: { type: 'string', description: 'One coaching line, up to 160 characters, or an empty string.' },
+    cue: { type: 'string', description: 'One form cue, up to 160 characters, or an empty string: position, path, what to feel, what to avoid. No weights, rep counts or set structure; the app sets the load.' },
     drop: { type: 'boolean' }, partials: { type: 'boolean' }, bw: { type: 'boolean' }, hold: { type: 'boolean' },
     per: { type: 'string', enum: ['', 'leg', 'side', 'arm'] },
   },

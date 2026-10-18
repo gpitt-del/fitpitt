@@ -139,6 +139,8 @@ h3 { font: 600 21px/1.15 var(--fc); }
 .ex-meta { grid-column: 2; margin-top: 4px; font-size: 14px; color: var(--muted); }
 .ex-meta b { font: 600 18px/1 var(--fc); color: var(--ink); margin-right: 6px; }
 .ex-aim { grid-column: 2; margin-top: 6px; font-size: 15px; }
+.ex-aim b { font-weight: 700; }
+.ex-cue { margin-top: 4px; color: var(--muted); }
 .sets { margin-top: 12px; display: grid; gap: 8px; }
 .set { display: grid; grid-template-columns: 26px 1fr 1fr 52px; gap: 8px; align-items: center; }
 .set-n { font: 600 19px/1 var(--fc); color: var(--muted); text-align: center; }

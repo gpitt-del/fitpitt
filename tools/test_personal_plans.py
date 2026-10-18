@@ -483,6 +483,44 @@ async def main():
         await shot(page, '11b-tight-day-names')
         await ctx.close()
 
+        # ---------- 8c. v27: sized weight step, Target/Form lines, exact rest, no rest-pause on a coach plan, tick first ----------
+        ctx, page = await newpage(browser, tag='v27')
+        mon = monday(datetime.date.today())
+        start = (mon - datetime.timedelta(days=14)).isoformat()
+        big = {'id': 'big', 'prog': 'mine', 'day': 'A', 'date': (mon - datetime.timedelta(days=14)).isoformat(), 'startedAt': 1, 'endedAt': 2, 'dur': 3000, 'block': 1, 'week': 1, 'wib': 1, 'deload': False, 'rot': 1, 'note': '', 'u': 1,
+               'ex': [{'slot': 'A1', 'name': 'Barbell bench press', 'g': 'chest', 'lo': 6, 'hi': 10, 'bw': False, 'sets': [{'w': 115, 'r': 18, 't': 1}, {'w': 115, 'r': 12, 't': 2}, {'w': 115, 'r': 9, 't': 3}]}]}
+        await seed(page, meta={'v': 1, 'program': 'mine', 'startDate': start, 'paused': [], 'priority': [], 'restC': 150, 'restI': 75, 'restRp': 20, 'style': 'rp', 'sound': True, 'effort': 'last', 'names': {}, 'lastBackup': 0, 'resetAt': 0, 'u': 1},
+                   sessions=[big], extra={'fitpitt.plan': json.dumps({'plan': PLAN, 'code': CODE, 'at': 1})})
+        await page.click('[data-act="pickDay"][data-d="A"]')
+        pv = await page.inner_text('#app .preview')
+        ok('a first set far past the range earns a jump sized from the rep max, not +5', 'Add weight: 140 lb' in pv, pv[:300])
+        ok('the rep-max sizing is capped and floored', await page.evaluate('[FP_SIZED(115, 18, 10), FP_SIZED(115, 12, 10), FP_SIZED(100, 30, 8), FP_SIZED(15, 20, 12)]') == [140, 120, 120, 17.5])
+        await page.click('[data-act="start"]'); await page.wait_for_selector('#app .ex')
+        lines = await page.evaluate("""() => [...document.querySelectorAll('#app .ex')].slice(0, 3).map(x => ({ meta: x.querySelector('.ex-meta').innerText.replace(/\\s+/g, ' '), aim: [...x.querySelectorAll('.ex-aim')].map(p => p.innerText.replace(/\\s+/g, ' ')) }))""")
+        await shot(page, '12-v27-workout')
+        ok('the target and the form cue are two labelled lines', lines[2]['aim'][0].startswith('Target:') and lines[2]['aim'][1].startswith('Form: Elbows about 45'), lines[2])
+        ok('the rest shown is one number, not a range', 'rest 2:30' in lines[0]['meta'] and ' to ' not in lines[0]['meta'] and 'min' not in lines[0]['meta'], lines[0]['meta'])
+        ok('a coach-built plan runs as written even with rest-pause on: no mini-sets', await page.locator('#app .set.drop').count() == 0 and 'mini' not in lines[0]['meta'], lines[0]['meta'])
+        await page.evaluate("localStorage.setItem('fitpitt.stopwatch', JSON.stringify({ on: false, start: 0, acc: 90000 }))")  # a stale stopwatch reading
+        await page.click('[data-act="toggleSet"] >> nth=0')  # reps blank
+        tick = await page.evaluate("""() => { const r = document.querySelector('#app .set[data-ei="0"][data-si="0"]'), sw = JSON.parse(localStorage.getItem('fitpitt.stopwatch')); return { done: r.classList.contains('done'), want: r.querySelector('input[data-f="r"]').classList.contains('want'), swOn: sw.on, swFresh: sw.acc === 0 && Date.now() - sw.start < 3000, shows: document.getElementById('sw').textContent }; }""")
+        ok('the tick logs a set with the reps blank, restarts the stopwatch from zero and marks the reps box', tick['done'] and tick['want'] and tick['swOn'] and tick['swFresh'], tick)
+        await page.fill('#app .set[data-ei="0"][data-si="0"] input[data-f="r"]', '9')
+        ok('typing the reps afterwards clears the mark and is kept', await page.evaluate("""() => { const r = document.querySelector('#app .set[data-ei="0"][data-si="0"] input[data-f="r"]'); return !r.classList.contains('want') && JSON.parse(localStorage.getItem('traininglog.v1')).active.ex[0].sets[0].r === 9; }"""))
+        await page.click('#app .set[data-ei="0"][data-si="1"] [data-act="toggleSet"]')  # second set, left blank
+        await page.click('[data-act="finish"]'); await page.wait_for_selector('#app .hero h1')
+        last = await page.evaluate("JSON.parse(localStorage.getItem('traininglog.v1')).sessions.slice(-1)[0].ex[0].sets")
+        ok('a set still blank at finish is saved with the bottom of the range (no placeholder after a weight jump) and flagged assumed', len(last) == 2 and last[0]['r'] == 9 and not last[0].get('a') and last[1]['r'] == 6 and last[1].get('a') is True, last)
+        # A session whose sets all hit the top of the range, but one of them assumed: no weight step.
+        await page.evaluate("""() => { const d = JSON.parse(localStorage.getItem('traininglog.v1')); const s = d.sessions[d.sessions.length - 1]; s.ex[0].sets = [{ w: 140, r: 10, t: 0 }, { w: 140, r: 10, t: 1, a: true }, { w: 140, r: 10, t: 2 }]; localStorage.setItem('traininglog.v1', JSON.stringify(d)); }""")
+        await page.reload(); await page.wait_for_selector('#app h1')
+        await page.click('[data-act="pickDay"][data-d="A"]')
+        pv = await page.inner_text('#app .preview')
+        ok('assumed reps never earn a weight step', 'assumed, not typed' in pv and 'Add weight' not in pv.split('Lat pulldown')[0], pv.split('Lat pulldown')[0])
+        await page.click('[data-tab="settings"]')
+        ok('Settings says the session style does not touch a coach-built plan', 'runs as the coach wrote it' in await page.inner_text('#app'))
+        await ctx.close()
+
         # ---------- 9. Fixes from the review ----------
         ctx, page = await newpage(browser, tag='review')
         await page.goto(SITE); await page.wait_for_selector('#app h1')

@@ -70,7 +70,8 @@ function strip(pos) {
   return '<div class="strip"><span><strong>' + where + '</strong>' + kind + '</span><span id="sync" class="sync">' + STATUS[Cloud.status] + '</span></div>' + yearBar(pos);
 }
 function targetText(p, n) { return n + ' × ' + (p.lo === p.hi ? p.lo : p.lo + '–' + p.hi) + (p.unit === 'sec' ? ' sec' : '') + (p.per ? ' per ' + p.per : '') + (p.rpn ? ' + ' + p.rpn + ' mini' : ''); }
-const restText = p => 'rest ' + (p.rest ? p.rest + ' s' : p.rpn ? S.meta.restRp + ' s' : p.k === 'c' ? (rpMode() ? '90 s to 2 min' : '2 to 3 min') : '60 to 90 s');
+// The rest shown is the number the timer will run (Gabe, Oct 13), not a range from the rulebook.
+const restText = p => (p.rpn ? 'rest ' + fmtClock(restOf(p)) + ' between mini-sets' : 'rest ' + fmtClock(restOf(p)));
 const setN = s => s.ex.reduce((a, e) => a + e.sets.filter(x => !x.drop).length, 0);
 function scanDue(pos) {
   if (pos.pre || !pos.deload) return false;
@@ -115,11 +116,13 @@ function exCard(e, ei) {
       '<label class="field"><input type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" data-f="r" value="' + (s.r == null ? '' : s.r) + '" placeholder="' + ph + '" aria-label="' + cap(unit) + ', ' + lab + '"><span>' + unit + '</span></label>' +
       '<button class="check" data-act="toggleSet" aria-pressed="' + !!s.done + '" aria-label="' + (s.done ? 'Undo ' : 'Log ') + lab + '">' + CHECK + '</button></div>';
   }).join('');
-  const lastSet = e.sets[e.sets.length - 1], note = [e.aim, e.cue].filter(Boolean).join(' ');
+  const lastSet = e.sets[e.sets.length - 1];
+  // Two voices, two labelled lines (Gabe, Oct 13): the app's target (what weight and reps, from the log) and the coach's form cue.
+  const note = (e.aim ? '<p class="ex-aim"><b>Target:</b> ' + esc(e.aim) + '</p>' : '') + (e.cue ? '<p class="ex-aim ex-cue"><b>Form:</b> ' + esc(e.cue) + '</p>' : '');
   return '<section class="ex" data-ei="' + ei + '"><div class="ex-head"><span class="ex-n">' + (ei + 1) + '</span>' +
     '<h3 class="ex-name">' + esc(e.name) + '</h3>' +
     '<p class="ex-meta"><b>' + targetText(e, main) + '</b>' + restText(e) + tags(e) + '</p>' +
-    (note ? '<p class="ex-aim">' + esc(note) + '</p>' : '') + '</div>' +
+    note + '</div>' +
     '<div class="sets">' + rows + '</div>' +
     '<div class="ex-actions">' + (editNames ? '<button data-act="rename" data-ei="' + ei + '">Change exercise</button>' : '') + (e.rpn ? '<button data-act="addMini">Add mini-set</button>' : '<button data-act="addSet">Add set</button>') + (e.drop || (lastSet && lastSet.drop && !lastSet.part && !lastSet.mini) ? '<button data-act="addDrop">Add drop set</button>' : '') + (e.pp ? '<button data-act="addPart">Add partials</button>' : '') + (lastSet && !lastSet.done && (lastSet.drop || e.sets.length > (e.planned || 0)) ? '<button data-act="rmSet">Remove last set</button>' : '') + '</div></section>';
 }

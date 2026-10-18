@@ -45,6 +45,7 @@ How to write a plan:
 - Volume: beginners about 6 to 10 hard sets per muscle per week; experienced 10 to 20. Spread a muscle over two or more days where it fits.
 - Reps: 6 to 10 or 8 to 12 for big compound lifts, 10 to 15 or 12 to 20 for isolation. Holds (planks) use seconds with "hold": true.
 - rest: "long" for presses, rows, squats, hinges, leg press; "short" for the rest.
+- cue: one line of form only (position, path, what to feel, what to avoid). No weights, no rep counts, no "start at", no set structure: the app works the load out from the log and shows the cue beside it as "Form:", so a number in a cue contradicts the app.
 - effort text: beginners stop 2 or 3 reps short; experienced leave 1 or 2 on early sets and take the last set to failure.
 - warmup, for every day: 3 to 6 short lines (up to 90 characters each) that the app shows at the top of that workout. A few minutes easy (bike, row, walk), then movement prep for what the day trains (hips, hinges and leg swings before legs; arm circles, band pull-aparts and push-ups before pressing; balance, hip and hamstring work and soft landings before jumps), then two light ramp-up sets of the first exercise. Written for the day, not the same lines every day.
 - rules: up to 8 short lines, each starting with a **bold lead**. Put injury work-arounds here (e.g. "**Look after the left shoulder.** No overhead pressing.").
